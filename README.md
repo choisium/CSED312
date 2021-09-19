@@ -1,6 +1,9 @@
 # Pintos
 
-Pintos, a simple operating system framework for the 80x86 architecture created at Stanford University
+Pintos, a simple operating system framework for the 80x86 architecture created at Stanford University  
+Original repo is [here](https://github.com/postech-csed312-2019/pintos)
+
+
 
 ## Environment
 
