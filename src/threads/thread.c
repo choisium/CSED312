@@ -280,6 +280,20 @@ comp_tick (const struct list_elem *a_, const struct list_elem *b_,
   return a->wakeup_tick < b->wakeup_tick;
 };
 
+void 
+thread_wakeup (int64_t ticks)
+{
+  while (!list_empty (&sleep_list))
+    {
+      struct thread *t = list_entry (list_begin (&sleep_list),
+                                struct thread, elem);
+      if (ticks < t->wakeup_tick)
+        break;
+      list_pop_front(&sleep_list);
+      thread_unblock (t);
+    } 
+}
+
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) 
