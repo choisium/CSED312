@@ -65,6 +65,8 @@ bool thread_mlfqs;
 
 static void kernel_thread (thread_func *, void *aux);
 
+static bool comp_tick (const struct list_elem *, const struct list_elem *,
+                        void *);
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
@@ -248,6 +250,35 @@ thread_unblock (struct thread *t)
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
+
+/* Project1 - alarm clock */
+/* Thread Sleeps until ticks */
+void
+thread_sleep (int64_t ticks)
+{
+  struct thread *cur = thread_current();
+  enum intr_level old_level;
+
+  ASSERT (cur != idle_thread);
+
+  old_level = intr_disable();
+  cur->wakeup_tick = ticks;
+  list_insert_ordered (&sleep_list, &cur->elem,
+                                 comp_tick, NULL);
+  thread_block();
+  intr_set_level(old_level);
+}
+
+/* compare function for wakeup_tick */
+static bool
+comp_tick (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+
+  return a->wakeup_tick < b->wakeup_tick;
+};
 
 /* Returns the name of the running thread. */
 const char *
