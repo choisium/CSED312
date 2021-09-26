@@ -67,8 +67,6 @@ static void kernel_thread (thread_func *, void *aux);
 
 static bool comp_tick (const struct list_elem *, const struct list_elem *,
                         void *);
-static bool comp_priority (const struct list_elem *, const struct list_elem *,
-                        void *);
 
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
@@ -288,7 +286,7 @@ comp_tick (const struct list_elem *a_, const struct list_elem *b_,
 };
 
 /* compare function for thread priority */
-static bool
+bool
 comp_priority (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
 {
