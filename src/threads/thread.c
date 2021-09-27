@@ -24,7 +24,6 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-/* Project1 - alarm clock */
 /* List of SLEEPING processes. Unblocked after wakeup_tick */
 static struct list sleep_list;
 
@@ -100,7 +99,6 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
-  /* Project1 - alarm clock */
   list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
@@ -255,7 +253,6 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-/* Project1 - alarm clock */
 /* Thread Sleeps until ticks */
 void
 thread_sleep (int64_t ticks)
