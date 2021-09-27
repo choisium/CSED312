@@ -210,7 +210,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   /* If created thread's priority is higher, yield cpu. */
-  check_priority();
+  check_priority_and_yield();
 
   return tid;
 }
@@ -402,7 +402,7 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   
   /* If the current thread no longer has the highest priority, yields. */
-  check_priority();
+  check_priority_and_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -426,7 +426,7 @@ get_max_ready_priority (void)
 
 /* If the current thread no longer has the highest priority, yields. */
 void
-check_priority (void)
+check_priority_and_yield (void)
 {
   if (thread_get_priority() < get_max_ready_priority())
     thread_yield();
