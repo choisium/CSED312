@@ -24,6 +24,10 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* Project1 - alarm clock */
+/* List of SLEEPING processes. Unblocked after wakeup_tick */
+static struct list sleep_list;
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -61,6 +65,8 @@ bool thread_mlfqs;
 
 static void kernel_thread (thread_func *, void *aux);
 
+static bool comp_tick (const struct list_elem *, const struct list_elem *,
+                        void *);
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
@@ -92,6 +98,9 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
+  /* Project1 - alarm clock */
+  list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -240,6 +249,49 @@ thread_unblock (struct thread *t)
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+}
+
+/* Project1 - alarm clock */
+/* Thread Sleeps until ticks */
+void
+thread_sleep (int64_t ticks)
+{
+  struct thread *cur = thread_current();
+  enum intr_level old_level;
+
+  ASSERT (cur != idle_thread);
+
+  old_level = intr_disable();
+  cur->wakeup_tick = ticks;
+  list_insert_ordered (&sleep_list, &cur->elem,
+                                 comp_tick, NULL);
+  thread_block();
+  intr_set_level(old_level);
+}
+
+/* compare function for wakeup_tick */
+static bool
+comp_tick (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+
+  return a->wakeup_tick < b->wakeup_tick;
+};
+
+void 
+thread_wakeup (int64_t ticks)
+{
+  while (!list_empty (&sleep_list))
+    {
+      struct thread *t = list_entry (list_begin (&sleep_list),
+                                struct thread, elem);
+      if (ticks < t->wakeup_tick)
+        break;
+      list_pop_front(&sleep_list);
+      thread_unblock (t);
+    } 
 }
 
 /* Returns the name of the running thread. */
@@ -463,6 +515,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  /* Project 1 - alarm clock */
+  t->wakeup_tick = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
