@@ -421,19 +421,26 @@ thread_set_max_priority (void)
 {
   struct thread *cur = thread_current();
   int max_priority = cur->original_priority;
+  enum intr_level old_level;
+
+  old_level = intr_disable ();
 
   if (!list_empty(&cur->acquired_lock_list)) {
     struct lock *max_lock = list_entry(list_max(&cur->acquired_lock_list,
                                                 comp_acquired_lock_priority, NULL),
                                        struct lock, elem);
-    struct thread *max_thread = list_entry(list_begin(&max_lock->semaphore.waiters),
-                                           struct thread, elem);
-    if (max_priority < max_thread->priority) {
-      max_priority = max_thread->priority;
+    if (!list_empty(&max_lock->semaphore.waiters)) {
+      struct thread *max_thread = list_entry(list_begin(&max_lock->semaphore.waiters),
+                                            struct thread, elem);
+      if (max_priority < max_thread->priority) {
+        max_priority = max_thread->priority;
+      }
     }
   }
 
   cur->priority = max_priority;
+
+  intr_set_level (old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
