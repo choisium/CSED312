@@ -280,9 +280,9 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
-  sema_up (&lock->semaphore);
   list_remove (&lock->elem);   // remove from current thread's acquired_lock_list
   thread_set_max_priority();
+  sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
