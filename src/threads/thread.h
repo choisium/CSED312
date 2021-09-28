@@ -87,11 +87,17 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
+    int priority;                       /* Priority. Max(original_priority, donated priority) */
+    int original_priority;              /* Original priority */
     struct list_elem allelem;           /* List element for all threads list. */
+
+    int64_t wakeup_tick;				    /* Tick when the thread need to wake up */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct list acquired_lock_list;     /* List of acquired locks. For priority donation */
+    struct lock * waiting_lock;         /* Waiting to acquire this lock */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -99,9 +105,7 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
-
-    int64_t wakeup_tick;				/* Tick when the thread need to wake up */
+    unsigned magic;                     /* Detects stack overflow. Should be last element of struct thread */
   };
 
 /* If false (default), use round-robin scheduler.
