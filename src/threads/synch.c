@@ -32,6 +32,14 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+
+/* Max level to donate priority */
+#define DONATE_MAX_LEVEL 8
+
+static bool sema_comp_priority (const struct list_elem *, const struct list_elem *,
+                                void *aux UNUSED);
+static void donate_priority (void);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -158,6 +166,34 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
+
+/* Donate priority to the holder of a lock which a thread is waiting */
+static void
+donate_priority (void)
+{
+  struct thread *donator = thread_current();
+  int level = 0;
+
+  ASSERT (donator->waiting_lock != NULL);
+
+  while(level++ < DONATE_MAX_LEVEL) {
+    struct thread *holder = donator->waiting_lock->holder;
+
+    if (donator->priority <= holder->priority) {
+      break;
+    }
+
+    holder->priority = donator->priority;
+
+    if (holder->waiting_lock) {
+      list_sort(&holder->waiting_lock->semaphore.waiters, comp_priority, NULL);
+    } else {
+      break;
+    }
+
+    donator = holder;
+  }
+}
 
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
@@ -198,8 +234,18 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  struct thread *cur = thread_current();
+
+  if (lock->holder) {
+    /* Priority Donation */
+    cur->waiting_lock = lock;
+    donate_priority();
+  }
+
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  lock->holder = cur;
+  cur->waiting_lock = NULL;
+  list_push_back (&cur->acquired_lock_list, &lock->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -235,6 +281,8 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  list_remove (&lock->elem);   // remove from current thread's acquired_lock_list
+  thread_set_max_priority();
 }
 
 /* Returns true if the current thread holds LOCK, false
