@@ -24,7 +24,6 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-/* Project1 - alarm clock */
 /* List of SLEEPING processes. Unblocked after wakeup_tick */
 static struct list sleep_list;
 
@@ -67,6 +66,7 @@ static void kernel_thread (thread_func *, void *aux);
 
 static bool comp_tick (const struct list_elem *, const struct list_elem *,
                         void *);
+
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
@@ -99,7 +99,6 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
-  /* Project1 - alarm clock */
   list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
@@ -210,6 +209,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  /* If created thread's priority is higher, yield cpu. */
+  check_priority_and_yield();
+
   return tid;
 }
 
@@ -246,12 +248,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, comp_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 
-/* Project1 - alarm clock */
 /* Thread Sleeps until ticks */
 void
 thread_sleep (int64_t ticks)
@@ -278,6 +279,17 @@ comp_tick (const struct list_elem *a_, const struct list_elem *b_,
   const struct thread *b = list_entry (b_, struct thread, elem);
 
   return a->wakeup_tick < b->wakeup_tick;
+};
+
+/* compare function for thread priority */
+bool
+comp_priority (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+
+  return a->priority > b->priority;
 };
 
 void 
@@ -360,7 +372,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, comp_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -388,6 +400,9 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  
+  /* If the current thread no longer has the highest priority, yields. */
+  check_priority_and_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -396,6 +411,27 @@ thread_get_priority (void)
 {
   return thread_current ()->priority;
 }
+
+/* Returns the highest priority in ready_list */
+int
+get_max_ready_priority (void)
+{
+  if (list_empty (&ready_list))
+    return 0;
+  
+  struct thread *t = list_entry (list_begin (&ready_list),
+                                struct thread, elem);
+  return t->priority;
+}
+
+/* If the current thread no longer has the highest priority, yields. */
+void
+check_priority_and_yield (void)
+{
+  if (thread_get_priority() < get_max_ready_priority())
+    thread_yield();
+}
+
 
 /* Sets the current thread's nice value to NICE. */
 void

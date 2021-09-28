@@ -93,7 +93,6 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  /* Project1 - alarm clock */
   /* thread will sleep until start + ticks */
   thread_sleep (start + ticks); 
 }
