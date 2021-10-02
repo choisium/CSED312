@@ -490,9 +490,13 @@ check_priority_and_yield (void)
 void
 thread_set_nice (int nice)
 {
+  enum intr_level old_level;
   struct thread* cur = thread_current();
+
+  old_level = intr_disable();
   cur->nice = nice;
   thread_update_priority(cur, NULL);
+  intr_set_level(old_level);
 
   /* If the current thread no longer has the highest priority, yields. */
   check_priority_and_yield();
