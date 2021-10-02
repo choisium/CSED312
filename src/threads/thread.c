@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -56,6 +57,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static float_t load_avg;        /* System load avaraged. For advanced scheduler. */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -100,8 +102,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
   list_init (&sleep_list);
+  load_avg = LOAD_AVG_DEFAULT;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -604,6 +606,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wakeup_tick = 0;
   t->original_priority = priority;
   list_init(&t->acquired_lock_list);
+
+  t->nice = NICE_DEFAULT;
+  t->recent_cpu = RECENT_CPU_DEFAULT;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
