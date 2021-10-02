@@ -65,7 +65,9 @@ bool thread_mlfqs;
 static void kernel_thread (thread_func *, void *aux);
 
 static bool comp_tick (const struct list_elem *, const struct list_elem *,
-                        void *);
+                       void *aux UNUSED);
+static bool comp_acquired_lock_priority (const struct list_elem *, const struct list_elem *,
+                                         void *aux UNUSED);
 
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
@@ -270,7 +272,7 @@ thread_sleep (int64_t ticks)
   intr_set_level(old_level);
 }
 
-/* compare function for wakeup_tick */
+/* Compare function for wakeup_tick */
 static bool
 comp_tick (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
@@ -281,7 +283,7 @@ comp_tick (const struct list_elem *a_, const struct list_elem *b_,
   return a->wakeup_tick < b->wakeup_tick;
 };
 
-/* compare function for thread priority */
+/* Compare function for thread priority */
 bool
 comp_priority (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
@@ -292,6 +294,23 @@ comp_priority (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 };
 
+/* Compare function for acquired lock priority */
+static bool
+comp_acquired_lock_priority (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED)
+{
+  struct lock *a = list_entry (a_, struct lock, elem);
+  struct lock *b = list_entry (b_, struct lock, elem);
+
+  const struct thread *a_thread = list_entry(list_begin(&a->semaphore.waiters),
+                                             struct thread, elem);
+  const struct thread *b_thread = list_entry(list_begin(&b->semaphore.waiters),
+                                             struct thread, elem);
+
+  return a_thread->priority > b_thread->priority;
+};
+
+/* Wake up thread whose wakeup_tick is passed */
 void 
 thread_wakeup (int64_t ticks)
 {
@@ -395,11 +414,41 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* Set the current thread's priority to max among original priority
+   and the priorities of acquiring locks */
+void
+thread_set_max_priority (void)
+{
+  struct thread *cur = thread_current();
+  int max_priority = cur->original_priority;
+  enum intr_level old_level;
+
+  old_level = intr_disable ();
+
+  if (!list_empty(&cur->acquired_lock_list)) {
+    struct lock *max_lock = list_entry(list_max(&cur->acquired_lock_list,
+                                                comp_acquired_lock_priority, NULL),
+                                       struct lock, elem);
+    if (!list_empty(&max_lock->semaphore.waiters)) {
+      struct thread *max_thread = list_entry(list_begin(&max_lock->semaphore.waiters),
+                                            struct thread, elem);
+      if (max_priority < max_thread->priority) {
+        max_priority = max_thread->priority;
+      }
+    }
+  }
+
+  cur->priority = max_priority;
+
+  intr_set_level (old_level);
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  thread_current ()->original_priority = new_priority;
+  thread_set_max_priority();
   
   /* If the current thread no longer has the highest priority, yields. */
   check_priority_and_yield();
@@ -552,8 +601,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  /* Project 1 - alarm clock */
   t->wakeup_tick = 0;
+  t->original_priority = priority;
+  list_init(&t->acquired_lock_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
