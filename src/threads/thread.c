@@ -449,6 +449,8 @@ thread_set_max_priority (void)
 void
 thread_set_priority (int new_priority) 
 {
+  if (thread_mlfqs) return;
+
   thread_current ()->original_priority = new_priority;
   thread_set_max_priority();
   
