@@ -657,11 +657,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   t->wakeup_tick = 0;
-  t->original_priority = priority;
   list_init(&t->acquired_lock_list);
 
   t->nice = NICE_DEFAULT;
   t->recent_cpu = RECENT_CPU_DEFAULT;
+
+  if (!thread_mlfqs) {
+    t->original_priority = priority;
+  } else {
+    thread_update_priority(t, NULL);
+  }
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
