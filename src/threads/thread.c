@@ -250,7 +250,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, comp_priority, NULL);
+  list_insert_ordered (&ready_list, &t->elem, comp_priority_greater, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -272,7 +272,7 @@ thread_sleep (int64_t ticks)
   intr_set_level(old_level);
 }
 
-/* Compare function for wakeup_tick */
+/* Compare function for wakeup_tick in acending order*/
 static bool
 comp_tick (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
@@ -283,9 +283,9 @@ comp_tick (const struct list_elem *a_, const struct list_elem *b_,
   return a->wakeup_tick < b->wakeup_tick;
 };
 
-/* Compare function for thread priority */
+/* Compare function for thread priority in descending order */
 bool
-comp_priority (const struct list_elem *a_, const struct list_elem *b_,
+comp_priority_greater (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
 {
   const struct thread *a = list_entry (a_, struct thread, elem);
@@ -294,7 +294,7 @@ comp_priority (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 };
 
-/* Compare function for acquired lock priority */
+/* Compare function for acquired lock priority in acending order*/
 static bool
 comp_acquired_lock_priority (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED)
@@ -391,7 +391,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, comp_priority, NULL);
+    list_insert_ordered (&ready_list, &cur->elem, comp_priority_greater, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
