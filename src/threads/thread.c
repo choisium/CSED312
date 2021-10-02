@@ -493,6 +493,9 @@ thread_set_nice (int nice)
   struct thread* cur = thread_current();
   cur->nice = nice;
   thread_update_priority(cur, NULL);
+
+  /* If the current thread no longer has the highest priority, yields. */
+  check_priority_and_yield();
 }
 
 /* Returns the current thread's nice value. */
@@ -504,14 +507,14 @@ thread_get_nice (void)
 
 /* Returns 100 times the system load average. */
 int
-thread_get_load_avg (void) 
+thread_get_load_avg (void)
 {
   return float_to_int_rounding_to_nearest(mul_float_by_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
-thread_get_recent_cpu (void) 
+thread_get_recent_cpu (void)
 {
   return float_to_int_rounding_to_nearest(mul_float_by_int(thread_current()->recent_cpu, 100));
 }
