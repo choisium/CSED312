@@ -522,10 +522,8 @@ thread_get_recent_cpu (void)
 void
 thread_update_priority (struct thread *t, void *aux UNUSED)
 {
-  int new_priority = float_to_int_rounding_to_zero(
+  t->priority = float_to_int_rounding_to_zero(
     add_float_and_int(div_float_by_int(t->recent_cpu, 44), PRI_MAX - t->nice));
-
-  t->priority = new_priority;
 }
 
 /* Increase recent_cpu of current running thread by 1 */
@@ -534,7 +532,7 @@ thread_increment_recent_cpu (void)
 {
   struct thread *t = thread_current();
   if (t == idle_thread) return;
-  t->recent_cpu += 1;
+  t->recent_cpu = add_float_and_int(t->recent_cpu, 1);
 }
 
 /* Update recent_cpu as calculated value from thread's recent_cpu,
@@ -547,9 +545,7 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 
   float_t load_avg_times_2 = mul_float_by_int(load_avg, 2);
   float_t coefficient = div_float(load_avg_times_2, add_float_and_int(load_avg_times_2, 1));
-  float_t new_recent_cpu = add_float_and_int(mul_float(coefficient, t->recent_cpu), t->nice);
-
-  t->recent_cpu = new_recent_cpu;
+  t->recent_cpu = add_float_and_int(mul_float(coefficient, t->recent_cpu), t->nice);
 }
 
 /* Update load_avg as calculated value from ready_threads,
@@ -564,8 +560,7 @@ thread_update_load_avg (void)
     ready_threads += 1;
   }
 
-  float_t new_load_avg = div_float_by_int(add_float_and_int(mul_float_by_int(load_avg, 59), ready_threads), 60);
-  load_avg = new_load_avg;
+  load_avg = div_float_by_int(add_float_and_int(mul_float_by_int(load_avg, 59), ready_threads), 60);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
