@@ -6,6 +6,8 @@
 
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100
+/* Priority updates every fourth tick */
+#define PRIORITY_UPDATE_FREQ 4
 
 void timer_init (void);
 void timer_calibrate (void);

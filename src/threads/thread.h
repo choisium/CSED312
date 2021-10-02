@@ -153,6 +153,11 @@ void thread_set_max_priority (void);
 int get_max_ready_priority (void);
 void check_priority_and_yield (void);
 
+void thread_update_priority (struct thread *, void *aux);
+void thread_increment_recent_cpu (void);
+void thread_update_recent_cpu (struct thread *, void *aux);
+void thread_update_load_avg (void);
+
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);

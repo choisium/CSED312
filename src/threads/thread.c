@@ -488,8 +488,9 @@ check_priority_and_yield (void)
 void
 thread_set_nice (int nice)
 {
-  thread_current ()->nice = nice;
-  /* TODO: Recalculate thread's priority */
+  struct thread* cur = thread_current();
+  cur->nice = nice;
+  thread_update_priority(cur, NULL);
 }
 
 /* Returns the current thread's nice value. */
@@ -513,42 +514,56 @@ thread_get_recent_cpu (void)
   return float_to_int_rounding_to_nearest(mul_float_by_int(thread_current()->recent_cpu, 100));
 }
 
-/* Returns priority calculated from current thread's recent_cpu
-   and nice value using below formula:
+/* Update priority as calculated value from current thread's
+   recent_cpu and nice value using below formula:
    priority = PRI_MAX - (recent_cpu / 4) - (nice * 2) */
-static int
-thread_calculate_priority (struct thread *t)
+void
+thread_update_priority (struct thread *t, void *aux UNUSED)
 {
-  int priority = float_to_int_rounding_to_zero(
+  int new_priority = float_to_int_rounding_to_zero(
     add_float_and_int(div_float_by_int(t->recent_cpu, 44), PRI_MAX - t->nice));
 
-  return priority;
-}
+  t->priority = new_priority;
+}
 
-/* Returns recent_cpu calculated from thread's recent_cpu,
+/* Increase recent_cpu of current running thread by 1 */
+void
+thread_increment_recent_cpu (void)
+{
+  struct thread *t = thread_current();
+  if (t == idle_thread) return;
+  t->recent_cpu += 1;
+}
+
+/* Update recent_cpu as calculated value from thread's recent_cpu,
    nice value and global load_avg using below formula:
    recent_cpu = (2*load_avg) / (2*load_avg+1) * recent_cpu + nice */
-static float_t
-thread_calculate_recent_cpu (struct thread *t)
+void
+thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-  if (t == idle_thread) return 0;
+  if (t == idle_thread) return;
 
   float_t load_avg_times_2 = mul_float_by_int(load_avg, 2);
   float_t coefficient = div_float(load_avg_times_2, add_float_and_int(load_avg_times_2, 1));
-  return add_float_and_int(mul_float(coefficient, t->recent_cpu), t->nice);
+  float_t new_recent_cpu = add_float_and_int(mul_float(coefficient, t->recent_cpu), t->nice);
+
+  t->priority = new_recent_cpu;
 }
 
-/* Returns load_avg calculated from ready_threads,the number of threads
-   that are either running or ready to run, using below formula:
+/* Update load_avg as calculated value from ready_threads,
+   the number of threads that are either running or ready to run,
+   using below formula:
    load_avg = (59/60) * load_avg + (1/60) * ready_threads */
-static float_t
-thread_calculate_load_avg (void)
+void
+thread_update_load_avg (void)
 {
   int ready_threads = list_size(&ready_list);
   if (thread_current() != idle_thread) {  // not including idle threads
     ready_threads += 1;
   }
-  return div_float_by_int(add_float_and_int(mul_float_by_int(load_avg, 59), ready_threads), 60);
+
+  float_t new_load_avg = div_float_by_int(add_float_and_int(mul_float_by_int(load_avg, 59), ready_threads), 60);
+  load_avg = new_load_avg;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
