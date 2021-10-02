@@ -36,7 +36,7 @@
 /* Max level to donate priority */
 #define DONATE_MAX_LEVEL 8
 
-static bool sema_comp_priority (const struct list_elem *, const struct list_elem *,
+static bool sema_comp_priority_greater (const struct list_elem *, const struct list_elem *,
                                 void *aux UNUSED);
 static void donate_priority (void);
 
@@ -76,7 +76,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, comp_priority, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, comp_priority_greater, NULL);
       thread_block ();
     }
   sema->value--;
@@ -122,8 +122,11 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    {
+      list_sort (&sema->waiters, comp_priority_greater, NULL);
+      thread_unblock (list_entry (list_pop_front (&sema->waiters),
+                                  struct thread, elem));
+    }
   sema->value++;
   intr_set_level (old_level);
 
@@ -186,7 +189,7 @@ donate_priority (void)
     holder->priority = donator->priority;
 
     if (holder->waiting_lock) {
-      list_sort(&holder->waiting_lock->semaphore.waiters, comp_priority, NULL);
+      list_sort(&holder->waiting_lock->semaphore.waiters, comp_priority_greater, NULL);
     } else {
       break;
     }
@@ -304,10 +307,10 @@ struct semaphore_elem
   };
 
 /* Compare the priority of the first element in semaphore waiters
-   This is used in cond_wait to insert semaphore_elem in order
+   This is used in cond_wait to insert semaphore_elem in descending order
 */
 static bool
-sema_comp_priority (const struct list_elem *a_, const struct list_elem *b_,
+sema_comp_priority_greater (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED)
 {
   struct semaphore_elem *a = list_entry (a_, struct semaphore_elem, elem);
@@ -385,7 +388,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) {
-    list_sort (&cond->waiters, sema_comp_priority, NULL);
+    list_sort (&cond->waiters, sema_comp_priority_greater, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
   }
