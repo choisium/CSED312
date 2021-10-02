@@ -470,7 +470,7 @@ int
 get_max_ready_priority (void)
 {
   if (list_empty (&ready_list))
-    return 0;
+    return PRI_MIN;
   
   struct thread *t = list_entry (list_begin (&ready_list),
                                 struct thread, elem);
@@ -530,7 +530,7 @@ void
 thread_update_priority (struct thread *t, void *aux UNUSED)
 {
   t->priority = float_to_int_rounding_to_zero(
-    add_float_and_int(div_float_by_int(t->recent_cpu, -4), PRI_MAX - t->nice));
+    add_float_and_int(div_float_by_int(t->recent_cpu, -4), PRI_MAX - t->nice * 2));
 }
 
 /* Increase recent_cpu of current running thread by 1 */
