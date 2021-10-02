@@ -549,7 +549,7 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   float_t coefficient = div_float(load_avg_times_2, add_float_and_int(load_avg_times_2, 1));
   float_t new_recent_cpu = add_float_and_int(mul_float(coefficient, t->recent_cpu), t->nice);
 
-  t->priority = new_recent_cpu;
+  t->recent_cpu = new_recent_cpu;
 }
 
 /* Update load_avg as calculated value from ready_threads,
