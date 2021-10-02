@@ -307,7 +307,7 @@ comp_acquired_lock_priority (const struct list_elem *a_, const struct list_elem 
   const struct thread *b_thread = list_entry(list_begin(&b->semaphore.waiters),
                                              struct thread, elem);
 
-  return a_thread->priority > b_thread->priority;
+  return a_thread->priority < b_thread->priority;
 };
 
 /* Wake up thread whose wakeup_tick is passed */
