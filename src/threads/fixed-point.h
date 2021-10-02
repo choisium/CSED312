@@ -5,7 +5,7 @@ typedef int float_t;
 
 /* Converting float to int and vice versa */
 float_t int_to_float (int n);
-int float_to_int_rounding_toward_zero (float_t x);
+int float_to_int_rounding_to_zero (float_t x);
 int float_to_int_rounding_to_nearest (float_t x);
 
 /* Arithmetic between two floats */

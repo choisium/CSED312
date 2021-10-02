@@ -22,7 +22,7 @@ float_t int_to_float (int n) {
     return n * f;
 }
 
-int float_to_int_rounding_toward_zero (float_t x) {
+int float_to_int_rounding_to_zero (float_t x) {
     return x / f;
 }
 
