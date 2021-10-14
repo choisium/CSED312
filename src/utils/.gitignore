@@ -1,4 +1,6 @@
 setitimer-helper
 squish-pty
 squish-unix
-*.o
+setitimer-helper.o
+squish-pty.o
+squish-unix.o
