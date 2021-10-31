@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static int parse_command(char *command, char **argv);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,6 +31,8 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  char *argv[LOADER_ARGS_LEN / 2 + 1];
+  int argc;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,8 +41,11 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /* Parse commands */
+  argc = parse_command(file_name, argv);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -462,4 +468,22 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+/* User Program helper function */
+
+/* Parse commands into argv, and return argc */
+static int 
+parse_command(char *command, char **argv) 
+{
+  int argc = 0;
+  char *token, *save_ptr;
+
+  for (token = strtok_r (command, " ", &save_ptr); token != NULL;
+      token = strtok_r (NULL, " ", &save_ptr))
+    {
+      argv[argc++] = token;
+    }
+
+  return argc;
 }
