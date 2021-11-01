@@ -23,6 +23,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static int parse_command(const char *command, char **argv);
+static void fill_stack(const int argc, const char **argv, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -73,8 +74,6 @@ start_process (void *file_name_)
   int argc;
   int i;
 
-  printf("START PROCESS\n");
-  
   /* Parse commands */
   argc = parse_command(file_name, argv);
 
@@ -89,6 +88,16 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+
+  /* If load success, fill stack */
+  fill_stack(argc, (const char **) argv, &if_.esp);
+  hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+
+  /* Free parsed commands */
+  for (i = 0; i < argc; i++) 
+    {
+      free(argv[i]);
+    }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -112,7 +121,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  int64_t loops = 100000;
+  int64_t loops = 1000000000;
   while (loops-- > 0)
     barrier ();
   return -1;
@@ -501,8 +510,6 @@ parse_command(const char *command, char **argv)
   int argc = 0;
   char *token, *save_ptr;
 
-  printf("PARSING\n");
-
   /* Make a copy of command. */
   cm_copy = palloc_get_page (0);
   if (cm_copy == NULL)
@@ -519,4 +526,53 @@ parse_command(const char *command, char **argv)
   
   palloc_free_page (cm_copy); 
   return argc;
+}
+
+/* Fill user stack before calling user program */ 
+static void 
+fill_stack(const int argc, const char **argv, void **esp)
+{
+  int i;
+  int arg_len;
+  char **argv_addr;
+  uint32_t ALIGN_MASK = 0xfffffffc;
+
+  argv_addr = (char **) malloc (sizeof (char *) * argc);
+
+  /* Push argv[argc-1] ~ argv[0]*/
+  for (i = argc - 1; i >= 0; i--)
+    {
+      arg_len = strlen(argv[i]) + 1;
+      *esp -= arg_len;
+      strlcpy(*esp, argv[i], arg_len);
+      argv_addr[i] = *esp;
+    }
+
+   /* Word-align */
+  *esp = (void *)((uint32_t) *esp & ALIGN_MASK);
+  
+  /* Push NULL (argv[argc]) */
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  /* Push argv addr */
+  for (i = argc - 1; i >= 0; i--)
+    {
+      *esp -= 4;
+      **(uint32_t **)esp = (uint32_t) argv_addr[i];
+    }
+
+  /* Push argv */
+  *esp -= 4;
+  **(uint32_t **)esp = (uint32_t) *esp + 4;
+
+  /* Push argc */
+  *esp -= 4;
+  **(uint32_t **)esp = (uint32_t) argc;
+
+  /* Push return address */
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  free(argv_addr);
 }
