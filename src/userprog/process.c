@@ -15,13 +15,14 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static int parse_command(char *command, char **argv);
+static int parse_command(const char *command, char **argv);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -34,7 +35,8 @@ process_execute (const char *file_name)
   tid_t tid;
   char *argv[LOADER_ARGS_LEN / 2 + 1];
   int argc;
-
+  int i;
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -49,6 +51,13 @@ process_execute (const char *file_name)
   tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  
+  /* Free parsed commands */
+  for (i = 0; i < argc; i++) 
+    {
+      free(argv[i]);
+    }
+
   return tid;
 }
 
@@ -60,13 +69,21 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  char *argv[LOADER_ARGS_LEN / 2 + 1];
+  int argc;
+  int i;
+
+  printf("START PROCESS\n");
+  
+  /* Parse commands */
+  argc = parse_command(file_name, argv);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (argv[0], &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -478,16 +495,28 @@ install_page (void *upage, void *kpage, bool writable)
 
 /* Parse commands into argv, and return argc */
 static int 
-parse_command(char *command, char **argv) 
+parse_command(const char *command, char **argv) 
 {
+  char *cm_copy;
   int argc = 0;
   char *token, *save_ptr;
 
-  for (token = strtok_r (command, " ", &save_ptr); token != NULL;
+  printf("PARSING\n");
+
+  /* Make a copy of command. */
+  cm_copy = palloc_get_page (0);
+  if (cm_copy == NULL)
+    return TID_ERROR;
+  strlcpy (cm_copy, command, PGSIZE);
+
+  for (token = strtok_r (cm_copy, " ", &save_ptr); token != NULL;
       token = strtok_r (NULL, " ", &save_ptr))
     {
-      argv[argc++] = token;
+      char *str_ptr = (char *) malloc (sizeof (char) * (strlen(token) + 1));
+      strlcpy (str_ptr, token, strlen(token) + 1);
+      argv[argc++] = str_ptr;
     }
-
+  
+  palloc_free_page (cm_copy); 
   return argc;
 }
