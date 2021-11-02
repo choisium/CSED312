@@ -7,6 +7,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
+#include "devices/input.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
@@ -15,6 +16,7 @@ static bool check_address_validity(const void *);
 
 /* Syscall handlers for each system call numbers */
 static void exit (int);
+static int read (int, void *, unsigned);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
 static bool remove (const char *);
@@ -48,6 +50,7 @@ check_address_validity (const void *vaddr) {
 void
 syscall_init (void) 
 {
+  lock_init (&file_system_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -103,7 +106,11 @@ syscall_handler (struct intr_frame *f)
       break;
 
     case SYS_READ:
-      printf("SYS_READ\n");
+      syscall_get_argument(f, 3, args);
+      valid = check_address_validity((void *) args[1]);
+      if (!valid) exit(-1);
+
+      f->eax = read(args[0], (void *) args[1], args[2]);
       break;
 
     case SYS_WRITE:
@@ -140,11 +147,54 @@ exit (int status)
 }
 
 static int
+read (int fd, void *buffer, unsigned size)
+{
+  unsigned i;
+  int ret;
+  char c = 1;
+
+  if (fd == 0)    // stdin
+  {
+    for (i = 0; i < size && c != '\0'; i++) {
+      c = input_getc();
+      ((char*) buffer)[i] = c;
+    }
+    return i;
+  }
+  else if (fd >= 2)
+  {
+    struct file *file_object = process_get_file(fd);
+    if (file_object == NULL) exit(-1);
+
+    lock_acquire(&file_system_lock);
+    ret = file_read(file_object, buffer, size);
+    lock_release(&file_system_lock);
+
+    return ret;
+  }
+  return -1;
+}
+
+static int
 write (int fd, const void *buffer, unsigned size)
 {
-  if (fd == 1) {
+  int ret;
+
+  if (fd == 1)    // stdout
+  {
     putbuf(buffer, size);
     return size;
+  }
+  else if (fd >= 2)
+  {
+    struct file *file_object = process_get_file(fd);
+    if (file_object == NULL) exit(-1);
+
+    lock_acquire(&file_system_lock);
+    ret = file_write(file_object, buffer, size);
+    lock_release(&file_system_lock);
+
+    return ret;
   }
   return -1;
 }
