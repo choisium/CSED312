@@ -91,7 +91,7 @@ start_process (void *file_name_)
 
   /* If load success, fill stack */
   fill_stack(argc, (const char **) argv, &if_.esp);
-  hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+  // hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* Free parsed commands */
   for (i = 0; i < argc; i++) 

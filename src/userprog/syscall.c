@@ -48,7 +48,6 @@ syscall_handler (struct intr_frame *f)
 {
   int number = *(uint32_t *) f->esp;  // syscall number
   int args[3];  // array to store arguments
-  int ret;      // store return value of syscall
   bool valid;   // check address validity
   // hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
 
@@ -57,7 +56,6 @@ syscall_handler (struct intr_frame *f)
       printf("SYS_HALT\n");
       break;
     case SYS_EXIT:
-      printf("SYS_EXIT\n");
       syscall_get_argument(f, 1, args);
       exit(args[0]);
       break;
@@ -80,13 +78,11 @@ syscall_handler (struct intr_frame *f)
       printf("SYS_READ\n");
       break;
     case SYS_WRITE:
-      printf("SYS_WRITE\n");
       syscall_get_argument(f, 3, args);
-
       valid = check_address_validity((void *) args[1]);
       if (!valid) exit(-1);
 
-      ret = write(args[0], (void *) args[1], args[2]);
+      f->eax = write(args[0], (void *) args[1], args[2]);
       break;
     case SYS_SEEK:
       printf("SYS_SEEK\n");
@@ -115,5 +111,5 @@ write (int fd, const void *buffer, unsigned size)
     putbuf(buffer, size);
     return size;
   }
-  return 0;
+  return -1;
 }
