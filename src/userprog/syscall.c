@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "filesys/filesys.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
@@ -14,6 +15,7 @@ static bool check_address_validity(const void *);
 /* Syscall handlers for each system call numbers */
 static void exit (int);
 static int write (int, const void *, unsigned);
+static bool create (const char *file, unsigned initial_size);
 
 
 /* Get arguments from interrupt frame and store it in argv */
@@ -63,7 +65,11 @@ syscall_handler (struct intr_frame *f)
       printf("SYS_WAIT\n");
       break;
     case SYS_CREATE:
-      printf("SYS_CREATE\n");
+      syscall_get_argument(f, 2, args);
+      valid = check_address_validity((void *) args[0]);
+      if (!valid) exit(-1);
+
+      f->eax = create((void *) args[0], args[1]);
       break;
     case SYS_REMOVE:
       printf("SYS_REMOVE\n");
@@ -112,4 +118,10 @@ write (int fd, const void *buffer, unsigned size)
     return size;
   }
   return -1;
+}
+
+static bool
+create (const char *file, unsigned initial_size)
+{
+  return filesys_create(file, initial_size);
 }
