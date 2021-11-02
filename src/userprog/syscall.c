@@ -19,7 +19,10 @@ static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
 static bool remove (const char *);
 static int open (const char *);
-static void close (int fd);
+static void close (int);
+static int filesize (int);
+static void seek (int, unsigned);
+static unsigned tell (int);
 
 /* Get arguments from interrupt frame and store it in argv */
 static void
@@ -95,7 +98,8 @@ syscall_handler (struct intr_frame *f)
       break;
 
     case SYS_FILESIZE:
-      printf("SYS_FILESIZE\n");
+      syscall_get_argument(f, 1, args);
+      f->eax = filesize(args[0]);
       break;
 
     case SYS_READ:
@@ -111,11 +115,13 @@ syscall_handler (struct intr_frame *f)
       break;
 
     case SYS_SEEK:
-      printf("SYS_SEEK\n");
+      syscall_get_argument(f, 2, args);
+      seek(args[0], args[1]);
       break;
 
     case SYS_TELL:
-      printf("SYS_TELL\n");
+      syscall_get_argument(f, 1, args);
+      f->eax = tell(args[0]);
       break;
 
     case SYS_CLOSE:
@@ -158,7 +164,7 @@ remove (const char *file)
 static int
 open (const char *file)
 {
-  struct file* file_object = filesys_open(file);
+  struct file *file_object = filesys_open(file);
   if (file_object == NULL) return -1;
   return process_open_file(file_object);
 }
@@ -167,4 +173,28 @@ static void
 close (int fd)
 {
   process_close_file(fd);
+}
+
+static int
+filesize (int fd)
+{
+  struct file *file_object = process_get_file(fd);
+  if (file_object == NULL) exit(-1);
+  return file_length(file_object);
+}
+
+static void
+seek (int fd, unsigned position)
+{
+  struct file *file_object = process_get_file(fd);
+  if (file_object == NULL) exit(-1);
+  file_seek(file_object, position);
+}
+
+static unsigned
+tell (int fd)
+{
+  struct file *file_object = process_get_file(fd);
+  if (file_object == NULL) exit(-1);
+  return file_tell(file_object);
 }
