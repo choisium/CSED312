@@ -48,7 +48,8 @@ syscall_handler (struct intr_frame *f)
 {
   int number = *(uint32_t *) f->esp;  // syscall number
   int args[3];  // array to store arguments
-  int ret;
+  int ret;      // store return value of syscall
+  bool valid;   // check address validity
   // hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
 
   switch (number) {
@@ -110,6 +111,9 @@ exit (int status)
 static int
 write (int fd, const void *buffer, unsigned size)
 {
-  printf("well write");
+  if (fd == 1) {
+    putbuf(buffer, size);
+    return size;
+  }
   return 0;
 }
