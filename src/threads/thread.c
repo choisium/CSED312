@@ -468,7 +468,7 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   for (i = 0; i < FILE_DESCRIPTORS_MAX; i++)
     t->file_descriptors[i] = NULL;
-  t->max_fd = 2;
+  t->max_fd = FILE_DESCRIPTORS_MIN;
 #endif
 
   old_level = intr_disable ();

@@ -141,7 +141,7 @@ process_exit (void)
   int i;
 
   /* Close all open files in file_descriptors */
-  for (i = 2; i < cur->max_fd; i++) {
+  for (i = FILE_DESCRIPTORS_MIN; i < cur->max_fd; i++) {
     process_close_file(i);
   }
 
@@ -614,7 +614,10 @@ int process_open_file (struct file *file)
 struct file *process_get_file (int fd)
 {
   struct thread *t = thread_current ();
-  if (fd < 2 || fd >= t->max_fd || t->file_descriptors[fd] == NULL) return NULL;
+  if (fd < FILE_DESCRIPTORS_MIN || fd >= t->max_fd
+      || t->file_descriptors[fd] == NULL)
+    return NULL;
+
   return t->file_descriptors[fd];
 }
 
@@ -622,7 +625,10 @@ struct file *process_get_file (int fd)
 void process_close_file (int fd)
 {
   struct thread *t = thread_current();
-  if (fd < 2 || fd >= t->max_fd || t->file_descriptors[fd] == NULL) return;
+  if (fd < FILE_DESCRIPTORS_MIN || fd >= t->max_fd
+      || t->file_descriptors[fd] == NULL)
+    return;
+
   file_close(t->file_descriptors[fd]);
   t->file_descriptors[fd] = NULL;
 }

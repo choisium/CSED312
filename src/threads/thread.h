@@ -28,6 +28,7 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 
 #ifdef USERPROG
+#define FILE_DESCRIPTORS_MIN 2
 #define FILE_DESCRIPTORS_MAX 128
 #endif
 
