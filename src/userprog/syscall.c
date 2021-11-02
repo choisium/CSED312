@@ -57,10 +57,15 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  int number = *(uint32_t *) f->esp;  // syscall number
+  int number;   // syscall number
   int args[3];  // array to store arguments
   bool valid;   // check address validity
   // hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
+
+  valid = check_address_validity(f->esp);
+  if (!valid) exit(-1);
+
+  number = *(uint32_t *) f->esp;
 
   switch (number) {
     case SYS_HALT:
