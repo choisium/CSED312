@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -135,9 +136,14 @@ process_exit (void)
   uint32_t *pd;
   int i;
 
+  /* Close all open files in file_descriptors */
   for (i = 2; i < cur->max_fd; i++) {
     process_close_file(i);
   }
+
+  /* Enable writes to executing file */
+  file_allow_write (cur->running_file);
+  file_close (cur->running_file);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -270,6 +276,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  /* Acquire file_system_lock to read file */
+  lock_acquire(&file_system_lock);
+
+  /* Disable writes to executing file */
+  t->running_file = file;
+  file_deny_write(file);
+
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -353,7 +366,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  lock_release(&file_system_lock);
   return success;
 }
 
@@ -582,6 +595,10 @@ fill_stack(const int argc, const char **argv, void **esp)
   free(argv_addr);
 }
 
+
+/* User Program file descriptor function */
+
+/* Add file object to file_descriptor and return fd */
 int process_open_file (struct file *file)
 {
   int fd;
@@ -593,6 +610,7 @@ int process_open_file (struct file *file)
   return fd;
 }
 
+/* Return file object from fd */
 struct file *process_get_file (int fd)
 {
   struct thread *t = thread_current ();
@@ -600,6 +618,7 @@ struct file *process_get_file (int fd)
   return t->file_descriptors[fd];
 }
 
+/* Close file object using fd */
 void process_close_file (int fd)
 {
   struct thread *t = thread_current();

@@ -105,6 +105,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct file* file_descriptors[FILE_DESCRIPTORS_MAX];
     int max_fd;
+    struct file* running_file;
 #endif
 
     /* Owned by thread.c. */
