@@ -83,7 +83,11 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  /* Acquire and release file_system_lock to read file */
+  lock_acquire(&file_system_lock);
   success = load (argv[0], &if_.eip, &if_.esp);
+  lock_release(&file_system_lock);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -276,9 +280,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
-  /* Acquire file_system_lock to read file */
-  lock_acquire(&file_system_lock);
-
   /* Disable writes to executing file */
   t->running_file = file;
   file_deny_write(file);
@@ -366,7 +367,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  lock_release(&file_system_lock);
   return success;
 }
 
