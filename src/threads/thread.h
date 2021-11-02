@@ -4,6 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#ifdef USERPROG
+#include "filesys/file.h"
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +26,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#ifdef USERPROG
+#define FILE_DESCRIPTORS_MAX 128
+#endif
 
 /* A kernel thread or user process.
 
@@ -96,6 +103,8 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct file* file_descriptors[FILE_DESCRIPTORS_MAX];
+    int max_fd;
 #endif
 
     /* Owned by thread.c. */
