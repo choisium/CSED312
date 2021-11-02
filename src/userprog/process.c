@@ -15,11 +15,15 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static int parse_command(const char *command, char **argv);
+static void fill_stack(const int argc, const char **argv, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,7 +34,10 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  char *argv[LOADER_ARGS_LEN / 2 + 1];
+  int argc;
+  int i;
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -38,10 +45,20 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /* Parse commands */
+  argc = parse_command(file_name, argv);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  
+  /* Free parsed commands */
+  for (i = 0; i < argc; i++) 
+    {
+      free(argv[i]);
+    }
+
   return tid;
 }
 
@@ -53,18 +70,34 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  char *argv[LOADER_ARGS_LEN / 2 + 1];
+  int argc;
+  int i;
+
+  /* Parse commands */
+  argc = parse_command(file_name, argv);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (argv[0], &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+
+  /* If load success, fill stack */
+  fill_stack(argc, (const char **) argv, &if_.esp);
+  hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+
+  /* Free parsed commands */
+  for (i = 0; i < argc; i++) 
+    {
+      free(argv[i]);
+    }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -88,6 +121,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  int64_t loops = 1000000000;
+  while (loops-- > 0)
+    barrier ();
   return -1;
 }
 
@@ -462,4 +498,81 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+/* User Program helper function */
+
+/* Parse commands into argv, and return argc */
+static int 
+parse_command(const char *command, char **argv) 
+{
+  char *cm_copy;
+  int argc = 0;
+  char *token, *save_ptr;
+
+  /* Make a copy of command. */
+  cm_copy = palloc_get_page (0);
+  if (cm_copy == NULL)
+    return TID_ERROR;
+  strlcpy (cm_copy, command, PGSIZE);
+
+  for (token = strtok_r (cm_copy, " ", &save_ptr); token != NULL;
+      token = strtok_r (NULL, " ", &save_ptr))
+    {
+      char *str_ptr = (char *) malloc (sizeof (char) * (strlen(token) + 1));
+      strlcpy (str_ptr, token, strlen(token) + 1);
+      argv[argc++] = str_ptr;
+    }
+  
+  palloc_free_page (cm_copy); 
+  return argc;
+}
+
+/* Fill user stack before calling user program */ 
+static void 
+fill_stack(const int argc, const char **argv, void **esp)
+{
+  int i;
+  int arg_len;
+  char **argv_addr;
+  uint32_t ALIGN_MASK = 0xfffffffc;
+
+  argv_addr = (char **) malloc (sizeof (char *) * argc);
+
+  /* Push argv[argc-1] ~ argv[0]*/
+  for (i = argc - 1; i >= 0; i--)
+    {
+      arg_len = strlen(argv[i]) + 1;
+      *esp -= arg_len;
+      strlcpy(*esp, argv[i], arg_len);
+      argv_addr[i] = *esp;
+    }
+
+   /* Word-align */
+  *esp = (void *)((uint32_t) *esp & ALIGN_MASK);
+  
+  /* Push NULL (argv[argc]) */
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  /* Push argv addr */
+  for (i = argc - 1; i >= 0; i--)
+    {
+      *esp -= 4;
+      **(uint32_t **)esp = (uint32_t) argv_addr[i];
+    }
+
+  /* Push argv */
+  *esp -= 4;
+  **(uint32_t **)esp = (uint32_t) *esp + 4;
+
+  /* Push argc */
+  *esp -= 4;
+  **(uint32_t **)esp = (uint32_t) argc;
+
+  /* Push return address */
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  free(argv_addr);
 }
