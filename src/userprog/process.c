@@ -576,3 +576,31 @@ fill_stack(const int argc, const char **argv, void **esp)
 
   free(argv_addr);
 }
+
+int process_open_file (struct file *file)
+{
+  int fd;
+  struct thread *t = thread_current ();
+  ASSERT (file != NULL);
+
+  fd = t->max_fd++;
+  t->file_descriptors[fd] = file;
+  return fd;
+}
+
+struct file *process_get_file (int fd)
+{
+  struct thread *t = thread_current ();
+  ASSERT (fd >= 2 && fd < t->max_fd);
+
+  return t->file_descriptors[fd];
+}
+
+void process_close_file (int fd)
+{
+  struct thread *t = thread_current();
+  ASSERT (fd >= 2 && fd < t->max_fd);
+
+  file_close(t->file_descriptors[fd]);
+  t->file_descriptors[fd] = NULL;
+}

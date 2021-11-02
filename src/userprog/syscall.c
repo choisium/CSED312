@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include "filesys/filesys.h"
 
 /* Auxiliary functions to implement syscall */
@@ -17,6 +18,8 @@ static void exit (int);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
 static bool remove (const char *);
+static int open (const char *);
+static void close (int fd);
 
 /* Get arguments from interrupt frame and store it in argv */
 static void
@@ -57,13 +60,16 @@ syscall_handler (struct intr_frame *f)
     case SYS_HALT:
       printf("SYS_HALT\n");
       break;
+
     case SYS_EXIT:
       syscall_get_argument(f, 1, args);
       exit(args[0]);
       break;
+
     case SYS_WAIT:
       printf("SYS_WAIT\n");
       break;
+
     case SYS_CREATE:
       syscall_get_argument(f, 2, args);
       valid = check_address_validity((void *) args[0]);
@@ -71,6 +77,7 @@ syscall_handler (struct intr_frame *f)
 
       f->eax = create((void *) args[0], args[1]);
       break;
+
     case SYS_REMOVE:
       syscall_get_argument(f, 1, args);
       valid = check_address_validity((void *) args[0]);
@@ -78,15 +85,23 @@ syscall_handler (struct intr_frame *f)
 
       f->eax = remove((void *) args[0]);
       break;
+
     case SYS_OPEN:
-      printf("SYS_OPEN\n");
+      syscall_get_argument(f, 1, args);
+      valid = check_address_validity((void *) args[0]);
+      if (!valid) exit(-1);
+
+      f->eax = open((char *) args[0]);
       break;
+
     case SYS_FILESIZE:
       printf("SYS_FILESIZE\n");
       break;
+
     case SYS_READ:
       printf("SYS_READ\n");
       break;
+
     case SYS_WRITE:
       syscall_get_argument(f, 3, args);
       valid = check_address_validity((void *) args[1]);
@@ -94,14 +109,18 @@ syscall_handler (struct intr_frame *f)
 
       f->eax = write(args[0], (void *) args[1], args[2]);
       break;
+
     case SYS_SEEK:
       printf("SYS_SEEK\n");
       break;
+
     case SYS_TELL:
       printf("SYS_TELL\n");
       break;
+
     case SYS_CLOSE:
-      printf("SYS_CLOSE\n");
+      syscall_get_argument(f, 1, args);
+      close(args[0]);
       break;
   }
 }
@@ -134,4 +153,18 @@ static bool
 remove (const char *file)
 {
   return filesys_remove(file);
+}
+
+static int
+open (const char *file)
+{
+  struct file* file_object = filesys_open(file);
+  if (file_object == NULL) return -1;
+  return process_open_file(file_object);
+}
+
+static void
+close (int fd)
+{
+  process_close_file(fd);
 }
