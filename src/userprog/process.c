@@ -133,6 +133,11 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  int i;
+
+  for (i = 2; i < cur->max_fd; i++) {
+    process_close_file(i);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -591,15 +596,14 @@ int process_open_file (struct file *file)
 struct file *process_get_file (int fd)
 {
   struct thread *t = thread_current ();
-  if (fd < 2 || fd >= t->max_fd) return NULL;
+  if (fd < 2 || fd >= t->max_fd || t->file_descriptors[fd] == NULL) return NULL;
   return t->file_descriptors[fd];
 }
 
 void process_close_file (int fd)
 {
   struct thread *t = thread_current();
-  if (fd < 2 || fd >= t->max_fd) return;
-
+  if (fd < 2 || fd >= t->max_fd || t->file_descriptors[fd] == NULL) return;
   file_close(t->file_descriptors[fd]);
   t->file_descriptors[fd] = NULL;
 }
