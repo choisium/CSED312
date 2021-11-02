@@ -40,7 +40,7 @@ static bool
 check_address_validity (const void *vaddr) {
   struct thread *t = thread_current();
 
-  if (vaddr != NULL && is_user_vaddr(vaddr)
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
       && pagedir_get_page(t->pagedir, vaddr) != NULL)
     return true;
 
