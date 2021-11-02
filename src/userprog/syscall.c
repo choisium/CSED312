@@ -8,7 +8,9 @@
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_get_argument (struct intr_frame *, const int, int *);
+static void exit (int);
 
+/* Get arguments from interrupt frame and store it in argv */
 static void
 syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
   int i;
@@ -26,11 +28,9 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  int number = *(uint32_t *) f->esp;
-  int args[3] = {0};
-  printf ("system call!\n");
-  hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
-  syscall_get_argument(f, 3, args);
+  int number = *(uint32_t *) f->esp;  // syscall number
+  int args[3];  // array to store arguments
+  // hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
 
   switch (number) {
     case SYS_HALT:
@@ -38,6 +38,8 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXIT:
       printf("SYS_EXIT\n");
+      syscall_get_argument(f, 1, args);
+      exit(args[0]);
       break;
     case SYS_WAIT:
       printf("SYS_WAIT\n");
@@ -72,4 +74,12 @@ syscall_handler (struct intr_frame *f)
   }
 
   thread_exit ();
+}
+
+static void
+exit (int status)
+{
+  struct thread *t = thread_current();
+  printf("%s: exit(%d)\n", t->name, status);
+  thread_exit();
 }
