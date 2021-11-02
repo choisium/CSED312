@@ -26,10 +26,50 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  int NUMBER = *(uint32_t *) f->esp;
+  int number = *(uint32_t *) f->esp;
   int args[3] = {0};
   printf ("system call!\n");
   hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
   syscall_get_argument(f, 3, args);
+
+  switch (number) {
+    case SYS_HALT:
+      printf("SYS_HALT\n");
+      break;
+    case SYS_EXIT:
+      printf("SYS_EXIT\n");
+      break;
+    case SYS_WAIT:
+      printf("SYS_WAIT\n");
+      break;
+    case SYS_CREATE:
+      printf("SYS_CREATE\n");
+      break;
+    case SYS_REMOVE:
+      printf("SYS_REMOVE\n");
+      break;
+    case SYS_OPEN:
+      printf("SYS_OPEN\n");
+      break;
+    case SYS_FILESIZE:
+      printf("SYS_FILESIZE\n");
+      break;
+    case SYS_READ:
+      printf("SYS_READ\n");
+      break;
+    case SYS_WRITE:
+      printf("SYS_WRITE\n");
+      break;
+    case SYS_SEEK:
+      printf("SYS_SEEK\n");
+      break;
+    case SYS_TELL:
+      printf("SYS_TELL\n");
+      break;
+    case SYS_CLOSE:
+      printf("SYS_CLOSE\n");
+      break;
+  }
+
   thread_exit ();
 }
