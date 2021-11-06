@@ -15,7 +15,6 @@ static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 
 /* Syscall handlers for each system call numbers */
-static void exit (int);
 static int read (int, void *, unsigned);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
@@ -40,7 +39,7 @@ static bool
 check_address_validity (const void *vaddr) {
   struct thread *t = thread_current();
 
-  if (vaddr != NULL && is_user_vaddr(vaddr)
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
       && pagedir_get_page(t->pagedir, vaddr) != NULL)
     return true;
 
@@ -143,7 +142,7 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
-static void
+void
 exit (int status)
 {
   struct thread *t = thread_current();
