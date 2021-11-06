@@ -452,6 +452,7 @@ static void
 init_thread (struct thread *t, const char *name, int priority)
 {
   enum intr_level old_level;
+  int i;
 
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
@@ -463,6 +464,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+#ifdef USERPROG
+  for (i = 0; i < FILE_DESCRIPTORS_MAX; i++)
+    t->file_descriptors[i] = NULL;
+  t->max_fd = FILE_DESCRIPTORS_MIN;
+#endif
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
