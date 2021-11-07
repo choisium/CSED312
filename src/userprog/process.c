@@ -92,7 +92,6 @@ start_process (void *file_name_)
 
   /* If load finished, resume parent process. */
   t->load_success = success;
-  // printf("Thread %s : LOAD FINISHED, SEMA UP\n", t->name);
   sema_up(&t->load_sema);
   
   /* If load failed, quit. */
