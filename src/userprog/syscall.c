@@ -8,6 +8,7 @@
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "devices/shutdown.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
@@ -15,6 +16,7 @@ static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 
 /* Syscall handlers for each system call numbers */
+static void halt (void);
 static int read (int, void *, unsigned);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
@@ -68,7 +70,7 @@ syscall_handler (struct intr_frame *f)
 
   switch (number) {
     case SYS_HALT:
-      printf("SYS_HALT\n");
+      halt ();
       break;
 
     case SYS_EXIT:
@@ -140,6 +142,13 @@ syscall_handler (struct intr_frame *f)
       close(args[0]);
       break;
   }
+}
+
+static void
+halt (void) 
+{
+  shutdown_power_off ();
+  NOT_REACHED ();
 }
 
 void
