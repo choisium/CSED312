@@ -146,8 +146,11 @@ process_exit (void)
   }
 
   /* Enable writes to executing file */
-  file_allow_write (cur->running_file);
-  file_close (cur->running_file);
+  if (cur->running_file)
+    {
+      file_allow_write (cur->running_file);
+      file_close (cur->running_file);
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
