@@ -485,6 +485,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->load_success = false;
   sema_init(&t->load_sema, 0);
   
+  /* Initialize wait field. */
+  t->exit_status = -1;
+  t->terminated_by_exit = false;
+  sema_init(&t->wait_sema, 0);
 #endif
 
   old_level = intr_disable ();

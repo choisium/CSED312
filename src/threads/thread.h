@@ -113,6 +113,9 @@ struct thread
     struct list_elem child_elem;        /* List element for child_list. */
     bool load_success;                  /* Flag for successful load. */
     struct semaphore load_sema;         /* Semaphore for successful load. */
+    int exit_status;                    /* Exit status. */
+    bool terminated_by_exit;            /* Flag for terminated by exit() syscall. */
+    struct semaphore wait_sema;         /* Semaphore for waiting termination. */
 #endif
 
     /* Owned by thread.c. */
