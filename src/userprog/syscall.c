@@ -81,7 +81,10 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_EXEC:
       syscall_get_argument(f, 1, args);
-      exec(args[0]);
+      valid = check_address_validity((void *) args[0]);
+      if (!valid) exit(-1);
+      
+      f->eax = exec((void *) args[0]);
       break;
     
     case SYS_WAIT:
