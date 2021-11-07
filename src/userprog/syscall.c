@@ -18,6 +18,7 @@ static bool check_address_validity(const void *);
 /* Syscall handlers for each system call numbers */
 static void halt (void);
 static pid_t exec (const char *);
+static int wait (pid_t);
 static int read (int, void *, unsigned);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
@@ -83,12 +84,13 @@ syscall_handler (struct intr_frame *f)
       syscall_get_argument(f, 1, args);
       valid = check_address_validity((void *) args[0]);
       if (!valid) exit(-1);
-      
+
       f->eax = exec((void *) args[0]);
       break;
     
     case SYS_WAIT:
-      printf("SYS_WAIT\n");
+      syscall_get_argument(f, 1, args);
+      f->eax = wait(args[0]);
       break;
 
     case SYS_CREATE:
@@ -165,6 +167,8 @@ exit (int status)
 {
   struct thread *t = thread_current();
   printf("%s: exit(%d)\n", t->name, status);
+  t->exit_status = status;
+  t->terminated_by_exit = true;
   thread_exit();
 }
 
@@ -188,6 +192,14 @@ exec (const char *cmd_line)
     return -1;
   else
     return pid;
+}
+
+static int 
+wait (pid_t pid)
+{
+  int status;
+  status = process_wait (pid);
+  return status;
 }
 
 static int

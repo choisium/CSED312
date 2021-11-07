@@ -92,7 +92,7 @@ start_process (void *file_name_)
 
   /* If load finished, resume parent process. */
   t->load_success = success;
-  printf("Thread %s : LOAD FINISHED, SEMA UP\n", t->name);
+  // printf("Thread %s : LOAD FINISHED, SEMA UP\n", t->name);
   sema_up(&t->load_sema);
   
   /* If load failed, quit. */
@@ -129,12 +129,38 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  int64_t loops = 1000000000;
-  while (loops-- > 0)
-    barrier ();
-  return -1;
+  struct thread *t;
+  
+  /* Find child process. */
+  t = process_get_child(child_tid);
+  
+  /* If pid does not refer to a direct child, return -1. */
+  if (t == NULL)
+    return -1;
+  
+  /* Wait for child's termination. */
+  sema_down(&t->wait_sema);
+  // printf("WAIT SEMA DOWN\n");
+
+  /* If child has already terminated, return pid.*/
+  // printf("STATUS : %d\n", t->status);
+  if (t->status == THREAD_DYING)
+   {
+      if (!t->terminated_by_exit)
+        {
+          /* Terminated by kernel. */
+          return -1;
+        }
+      else
+        {
+          /* Terminated by exit() syscall. */
+          return t->exit_status;
+        }
+   }
+
+   NOT_REACHED ();
 }
 
 /* Free the current process's resources. */

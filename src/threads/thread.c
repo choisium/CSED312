@@ -280,6 +280,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct thread *t = thread_current ();
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -292,6 +293,11 @@ thread_exit (void)
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+
+#ifdef USERPROG
+  sema_up(&t->wait_sema);
+#endif
+
   schedule ();
   NOT_REACHED ();
 }
@@ -486,7 +492,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->load_sema, 0);
   
   /* Initialize wait field. */
-  t->exit_status = -1;
+  t->exit_status = 0;
   t->terminated_by_exit = false;
   sema_init(&t->wait_sema, 0);
 #endif
