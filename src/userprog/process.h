@@ -13,4 +13,7 @@ int process_open_file (struct file *);
 struct file *process_get_file (int fd);
 void process_close_file (int fd);
 
+typedef int pid_t;
+struct thread *process_get_child (pid_t);
+
 #endif /* userprog/process.h */

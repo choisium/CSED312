@@ -632,3 +632,21 @@ void process_close_file (int fd)
   file_close(t->file_descriptors[fd]);
   t->file_descriptors[fd] = NULL;
 }
+
+/* Get child process by pid */
+struct thread * 
+process_get_child (pid_t pid)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      if (pid == t->tid)
+        return t;
+    }
+
+  return NULL;
+}
