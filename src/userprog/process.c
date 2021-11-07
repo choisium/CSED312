@@ -133,33 +133,42 @@ process_wait (tid_t child_tid)
 {
   struct thread *t;
   
+  enum thread_status status;
+  bool valid_exit;
+  int exit_status;
+
   /* Find child process. */
   t = process_get_child(child_tid);
   
-  /* If pid does not refer to a direct child, return -1. */
+  /* If pid does not refer to a valid direct child, return -1. */
   if (t == NULL)
     return -1;
   
   /* Wait for child's termination. */
   sema_down(&t->wait_sema);
-  // printf("WAIT SEMA DOWN\n");
+
+  /* Record child process' info before removal */
+  status = t->status;
+  valid_exit = t->terminated_by_exit;
+  exit_status = t->exit_status;
+
+  /* Remove child from parent's child_list and destroy. */
+  process_remove_child(t);
 
   /* If child has already terminated, return pid.*/
-  // printf("STATUS : %d\n", t->status);
-  if (t->status == THREAD_DYING)
-   {
-      if (!t->terminated_by_exit)
-        {
-          /* Terminated by kernel. */
-          return -1;
-        }
-      else
-        {
-          /* Terminated by exit() syscall. */
-          return t->exit_status;
-        }
-   }
+  ASSERT (status == THREAD_DYING);
 
+  if (!valid_exit)
+    {
+      /* Terminated by kernel. */
+      return -1;
+    }
+  else
+    {
+      /* Terminated by exit() syscall. */
+      return exit_status;
+    }
+  
    NOT_REACHED ();
 }
 
@@ -683,4 +692,23 @@ process_get_child (pid_t pid)
     }
 
   return NULL;
+}
+
+/* Remove child process */
+void
+process_remove_child (struct thread *child)
+{
+  struct list_elem *e;
+  struct thread *parent = child->parent;
+
+  /* Remove child from parent's child_list */
+  for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      if (child == t)
+        list_remove(e);
+    }
+  
+  palloc_free_page (child);
 }

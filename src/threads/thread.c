@@ -546,7 +546,7 @@ next_thread_to_run (void)
    After this function and its caller returns, the thread switch
    is complete. */
 void
-thread_schedule_tail (struct thread *prev)
+thread_schedule_tail (struct thread *prev UNUSED)
 {
   struct thread *cur = running_thread ();
   

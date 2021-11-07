@@ -15,5 +15,6 @@ void process_close_file (int fd);
 
 typedef int pid_t;
 struct thread *process_get_child (pid_t);
+void process_remove_child (struct thread *);
 
 #endif /* userprog/process.h */
