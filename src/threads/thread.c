@@ -481,6 +481,10 @@ init_thread (struct thread *t, const char *name, int priority)
       list_push_back(&cur->child_list, &t->child_elem);
     }
 
+  /* Initialize load field. */
+  t->load_success = false;
+  sema_init(&t->load_sema, 0);
+  
 #endif
 
   old_level = intr_disable ();

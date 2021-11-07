@@ -68,6 +68,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  struct thread *t = thread_current ();
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -89,6 +90,11 @@ start_process (void *file_name_)
   success = load (argv[0], &if_.eip, &if_.esp);
   lock_release(&file_system_lock);
 
+  /* If load finished, resume parent process. */
+  t->load_success = success;
+  printf("Thread %s : LOAD FINISHED, SEMA UP\n", t->name);
+  sema_up(&t->load_sema);
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -96,7 +102,6 @@ start_process (void *file_name_)
 
   /* If load success, fill stack */
   fill_stack(argc, (const char **) argv, &if_.esp);
-  // hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* Free parsed commands */
   for (i = 0; i < argc; i++) 
