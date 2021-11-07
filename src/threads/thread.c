@@ -451,6 +451,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  struct thread *cur = running_thread ();
   enum intr_level old_level;
   int i;
 
@@ -469,6 +470,17 @@ init_thread (struct thread *t, const char *name, int priority)
   for (i = 0; i < FILE_DESCRIPTORS_MAX; i++)
     t->file_descriptors[i] = NULL;
   t->max_fd = FILE_DESCRIPTORS_MIN;
+
+  /* Initialize parent-child hierarchy. */
+  list_init (&t->child_list);
+  if (t == initial_thread)
+    t->parent = NULL;
+  else
+    {
+      t->parent = cur;
+      list_push_back(&cur->child_list, &t->child_elem);
+    }
+
 #endif
 
   old_level = intr_disable ();

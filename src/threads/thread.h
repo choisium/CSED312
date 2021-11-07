@@ -107,6 +107,9 @@ struct thread
     struct file* file_descriptors[FILE_DESCRIPTORS_MAX];
     int max_fd;
     struct file* running_file;
+    struct thread* parent;              /* Parent thread. */
+    struct list child_list;             /* Child thread list. */
+    struct list_elem child_elem;         /* List element for child_list. */
 #endif
 
     /* Owned by thread.c. */
