@@ -73,6 +73,9 @@ filesys_open (const char *name)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
 
+  // if (inode == NULL)
+  //   printf("NO FILE\n");
+
   return file_open (inode);
 }
 

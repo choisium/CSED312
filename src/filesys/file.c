@@ -27,6 +27,11 @@ file_open (struct inode *inode)
     }
   else
     {
+      // if (file == NULL)
+      //   printf("ALLOCATION FAILED\n");
+      // else
+      //   printf("INVALID INODE\n");
+        
       inode_close (inode);
       free (file);
       return NULL; 
