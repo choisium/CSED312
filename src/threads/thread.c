@@ -295,6 +295,16 @@ thread_exit (void)
   t->status = THREAD_DYING;
 
 #ifdef USERPROG
+  /* Make its child's parent NULL. */
+  while (!list_empty (&t->child_list))
+    {
+      struct list_elem *e = list_pop_front (&t->child_list);
+      struct thread *child = list_entry (e, struct thread, child_elem);
+
+      ASSERT (child != NULL)
+
+      child->parent = NULL;
+    }
   sema_up(&t->wait_sema);
 #endif
 
@@ -563,7 +573,15 @@ thread_schedule_tail (struct thread *prev UNUSED)
   process_activate ();
 #endif
 
-#ifndef USERPROG
+#ifdef USERPROG
+  /* If the thread we switched from is dying and have no parent, 
+     destory its struct thread. (not initial thread) */
+  if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread && prev->parent == NULL) 
+    {
+      ASSERT (prev != cur);
+      palloc_free_page (prev);
+    }
+#else
   /* If the thread we switched from is dying, destroy its struct
      thread.  This must happen late so that thread_exit() doesn't
      pull out the rug under itself.  (We don't free
