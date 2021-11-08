@@ -291,8 +291,8 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
-  thread_current ()->status = THREAD_DYING;
+  list_remove (&t->allelem);
+  t->status = THREAD_DYING;
 
 #ifdef USERPROG
   sema_up(&t->wait_sema);
@@ -563,16 +563,18 @@ thread_schedule_tail (struct thread *prev UNUSED)
   process_activate ();
 #endif
 
-  // /* If the thread we switched from is dying, destroy its struct
-  //    thread.  This must happen late so that thread_exit() doesn't
-  //    pull out the rug under itself.  (We don't free
-  //    initial_thread because its memory was not obtained via
-  //    palloc().) */
-  // if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
-  //   {
-  //     ASSERT (prev != cur);
-  //     palloc_free_page (prev);
-  //   }
+#ifndef USERPROG
+  /* If the thread we switched from is dying, destroy its struct
+     thread.  This must happen late so that thread_exit() doesn't
+     pull out the rug under itself.  (We don't free
+     initial_thread because its memory was not obtained via
+     palloc().) */
+  if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
+    {
+      ASSERT (prev != cur);
+      palloc_free_page (prev);
+    }
+#endif
 }
 
 /* Schedules a new process.  At entry, interrupts must be off and
