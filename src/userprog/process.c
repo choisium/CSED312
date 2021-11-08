@@ -68,6 +68,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  struct thread *t = thread_current ();
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -89,6 +90,10 @@ start_process (void *file_name_)
   success = load (argv[0], &if_.eip, &if_.esp);
   lock_release(&file_system_lock);
 
+  /* If load finished, resume parent process. */
+  t->load_success = success;
+  sema_up(&t->load_sema);
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -96,7 +101,6 @@ start_process (void *file_name_)
 
   /* If load success, fill stack */
   fill_stack(argc, (const char **) argv, &if_.esp);
-  // hex_dump((uintptr_t) if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* Free parsed commands */
   for (i = 0; i < argc; i++) 
@@ -124,12 +128,47 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  int64_t loops = 1000000000;
-  while (loops-- > 0)
-    barrier ();
-  return -1;
+  struct thread *t;
+  
+  enum thread_status status;
+  bool valid_exit;
+  int exit_status;
+
+  /* Find child process. */
+  t = process_get_child(child_tid);
+  
+  /* If pid does not refer to a valid direct child, return -1. */
+  if (t == NULL)
+    return -1;
+  
+  /* Wait for child's termination. */
+  sema_down(&t->wait_sema);
+
+  /* Record child process' info before removal */
+  status = t->status;
+  valid_exit = t->terminated_by_exit;
+  exit_status = t->exit_status;
+
+  /* Remove child from parent's child_list and destroy. */
+  process_remove_child(t);
+
+  /* If child has already terminated, return pid.*/
+  ASSERT (status == THREAD_DYING);
+
+  if (!valid_exit)
+    {
+      /* Terminated by kernel. */
+      return -1;
+    }
+  else
+    {
+      /* Terminated by exit() syscall. */
+      return exit_status;
+    }
+  
+   NOT_REACHED ();
 }
 
 /* Free the current process's resources. */
@@ -146,8 +185,11 @@ process_exit (void)
   }
 
   /* Enable writes to executing file */
-  file_allow_write (cur->running_file);
-  file_close (cur->running_file);
+  if (cur->running_file)
+    {
+      file_allow_write (cur->running_file);
+      file_close (cur->running_file);
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -631,4 +673,41 @@ void process_close_file (int fd)
 
   file_close(t->file_descriptors[fd]);
   t->file_descriptors[fd] = NULL;
+}
+
+/* Get child process by pid */
+struct thread * 
+process_get_child (pid_t pid)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->child_list); e != list_end (&cur->child_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      if (pid == t->tid)
+        return t;
+    }
+
+  return NULL;
+}
+
+/* Remove child process */
+void
+process_remove_child (struct thread *child)
+{
+  struct list_elem *e;
+  struct thread *parent = child->parent;
+
+  /* Remove child from parent's child_list */
+  for (e = list_begin (&parent->child_list); e != list_end (&parent->child_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      if (child == t)
+        list_remove(e);
+    }
+  
+  palloc_free_page (child);
 }

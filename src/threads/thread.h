@@ -6,6 +6,7 @@
 #include <stdint.h>
 #ifdef USERPROG
 #include "filesys/file.h"
+#include "threads/synch.h"
 #endif
 
 /* States in a thread's life cycle. */
@@ -107,6 +108,14 @@ struct thread
     struct file* file_descriptors[FILE_DESCRIPTORS_MAX];
     int max_fd;
     struct file* running_file;
+    struct thread* parent;              /* Parent thread. */
+    struct list child_list;             /* Child thread list. */
+    struct list_elem child_elem;        /* List element for child_list. */
+    bool load_success;                  /* Flag for successful load. */
+    struct semaphore load_sema;         /* Semaphore for successful load. */
+    int exit_status;                    /* Exit status. */
+    bool terminated_by_exit;            /* Flag for terminated by exit() syscall. */
+    struct semaphore wait_sema;         /* Semaphore for waiting termination. */
 #endif
 
     /* Owned by thread.c. */

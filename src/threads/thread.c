@@ -280,6 +280,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct thread *t = thread_current ();
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -290,8 +291,13 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
-  thread_current ()->status = THREAD_DYING;
+  list_remove (&t->allelem);
+  t->status = THREAD_DYING;
+
+#ifdef USERPROG
+  sema_up(&t->wait_sema);
+#endif
+
   schedule ();
   NOT_REACHED ();
 }
@@ -451,6 +457,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  struct thread *cur = running_thread ();
   enum intr_level old_level;
   int i;
 
@@ -469,6 +476,25 @@ init_thread (struct thread *t, const char *name, int priority)
   for (i = 0; i < FILE_DESCRIPTORS_MAX; i++)
     t->file_descriptors[i] = NULL;
   t->max_fd = FILE_DESCRIPTORS_MIN;
+
+  /* Initialize parent-child hierarchy. */
+  list_init (&t->child_list);
+  if (t == initial_thread)
+    t->parent = NULL;
+  else
+    {
+      t->parent = cur;
+      list_push_back(&cur->child_list, &t->child_elem);
+    }
+
+  /* Initialize load field. */
+  t->load_success = false;
+  sema_init(&t->load_sema, 0);
+  
+  /* Initialize wait field. */
+  t->exit_status = 0;
+  t->terminated_by_exit = false;
+  sema_init(&t->wait_sema, 0);
 #endif
 
   old_level = intr_disable ();
@@ -520,7 +546,7 @@ next_thread_to_run (void)
    After this function and its caller returns, the thread switch
    is complete. */
 void
-thread_schedule_tail (struct thread *prev)
+thread_schedule_tail (struct thread *prev UNUSED)
 {
   struct thread *cur = running_thread ();
   
@@ -537,6 +563,7 @@ thread_schedule_tail (struct thread *prev)
   process_activate ();
 #endif
 
+#ifndef USERPROG
   /* If the thread we switched from is dying, destroy its struct
      thread.  This must happen late so that thread_exit() doesn't
      pull out the rug under itself.  (We don't free
@@ -547,6 +574,7 @@ thread_schedule_tail (struct thread *prev)
       ASSERT (prev != cur);
       palloc_free_page (prev);
     }
+#endif
 }
 
 /* Schedules a new process.  At entry, interrupts must be off and

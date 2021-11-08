@@ -8,6 +8,7 @@
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "devices/shutdown.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
@@ -15,6 +16,9 @@ static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 
 /* Syscall handlers for each system call numbers */
+static void halt (void);
+static pid_t exec (const char *);
+static int wait (pid_t);
 static int read (int, void *, unsigned);
 static int write (int, const void *, unsigned);
 static bool create (const char *, unsigned);
@@ -59,7 +63,6 @@ syscall_handler (struct intr_frame *f)
   int number;   // syscall number
   int args[3];  // array to store arguments
   bool valid;   // check address validity
-  // hex_dump((uintptr_t) f->esp, f->esp, PHYS_BASE - f->esp, true);
 
   valid = check_address_validity(f->esp);
   if (!valid) exit(-1);
@@ -68,7 +71,7 @@ syscall_handler (struct intr_frame *f)
 
   switch (number) {
     case SYS_HALT:
-      printf("SYS_HALT\n");
+      halt ();
       break;
 
     case SYS_EXIT:
@@ -76,8 +79,17 @@ syscall_handler (struct intr_frame *f)
       exit(args[0]);
       break;
 
+    case SYS_EXEC:
+      syscall_get_argument(f, 1, args);
+      valid = check_address_validity((void *) args[0]);
+      if (!valid) exit(-1);
+
+      f->eax = exec((void *) args[0]);
+      break;
+    
     case SYS_WAIT:
-      printf("SYS_WAIT\n");
+      syscall_get_argument(f, 1, args);
+      f->eax = wait(args[0]);
       break;
 
     case SYS_CREATE:
@@ -142,12 +154,51 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
+static void
+halt (void) 
+{
+  shutdown_power_off ();
+  NOT_REACHED ();
+}
+
 void
 exit (int status)
 {
   struct thread *t = thread_current();
   printf("%s: exit(%d)\n", t->name, status);
+  t->exit_status = status;
+  t->terminated_by_exit = true;
   thread_exit();
+}
+
+static pid_t
+exec (const char *cmd_line)
+{
+  pid_t pid;
+  struct thread *child;
+
+  pid = process_execute(cmd_line);
+  if (pid == TID_ERROR)
+    return -1;
+
+  /* Search child process by pid, and wait for load. */
+  child = process_get_child(pid);
+  sema_down(&child->load_sema);
+
+  /* If the program cannot run, return -1. 
+     Otherwise, return pid. */
+  if (!child->load_success)
+    return -1;
+  else
+    return pid;
+}
+
+static int 
+wait (pid_t pid)
+{
+  int status;
+  status = process_wait (pid);
+  return status;
 }
 
 static int
