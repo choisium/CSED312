@@ -571,9 +571,7 @@ thread_schedule_tail (struct thread *prev UNUSED)
 #ifdef USERPROG
   /* Activate the new address space. */
   process_activate ();
-#endif
 
-#ifdef USERPROG
   /* If the thread we switched from is dying and have no parent, 
      destory its struct thread. (not initial thread) */
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread && prev->parent == NULL) 
