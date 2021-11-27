@@ -80,8 +80,11 @@ start_process (void *file_name_)
   /* Parse commands */
   argc = parse_command(file_name, argv);
 
+#ifdef VM
   /* Initialize supplemental page table spt */
   spt_init(&t->spt);
+  lock_init(&t->spt_lock);
+#endif
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -212,8 +215,10 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   
+#ifdef VM
   /* destroy spt table */
   spt_destroy(&cur->spt);
+#endif
 }
 
 /* Sets up the CPU for running user code in the current
@@ -499,6 +504,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+#ifdef VM
+      if (!set_page_entry(file, ofs, upage, NULL, read_bytes, 
+                          zero_bytes, writable, PG_FILE))
+        return false;
+      
+      ofs += page_read_bytes;
+#else
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
@@ -518,7 +530,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
-
+#endif
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -544,6 +556,10 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+#ifdef VM
+  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, 
+                0, 0, true, PG_SWAP);
+#endif
   return success;
 }
 

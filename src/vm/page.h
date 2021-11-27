@@ -21,6 +21,8 @@ struct page_entry
     struct file* file;         // mapped file
 
     // struct frame* frame
+    void* kaddr;
+
     off_t ofs;                 // file offset
     uint32_t read_bytes;
     uint32_t zero_bytes;
@@ -40,4 +42,7 @@ bool spt_insert_page (struct hash *, struct page_entry *);
 bool spt_delete_page (struct hash *, struct page_entry *);
 void spt_destroy (struct hash *);
 void page_destructor (struct hash_elem *, void *aux);
+
+/* Lazy Loading */
+bool set_page_entry (struct file *, off_t, uint8_t *, void *, uint32_t, uint32_t, bool, enum page_type); 
 #endif

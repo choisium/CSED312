@@ -121,7 +121,10 @@ struct thread
     struct semaphore wait_sema;         /* Semaphore for waiting termination. */
 #endif
 
+#ifdef VM
    struct hash spt;                     /* Supplemental Page hash table */
+   struct lock spt_lock;                /* Lock for spt table. */
+#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

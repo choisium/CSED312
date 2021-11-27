@@ -2,6 +2,8 @@
 #include "vm/page.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
+#include "threads/synch.h"
 
 bool spt_init (struct hash *h)
  {
@@ -15,7 +17,6 @@ spt_hash_func (const struct hash_elem *e, void *aux UNUSED)
     return hash_int((uint32_t) p->vaddr);
   }
 
-/* Compare function for wakeup_tick in acending order*/
 bool
 spt_less_func (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED) 
   {
@@ -65,4 +66,34 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
   {
     struct page_entry *p = hash_entry (e, struct page_entry, elem);
     free (p);
+  }
+
+bool
+set_page_entry (struct file *file, off_t ofs, uint8_t *upage, void *kpage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable, enum page_type type) 
+  {
+    struct thread *t = thread_current ();
+
+    if (spt_find_page (&t->spt, upage) != NULL)
+      return false;
+    
+    struct page_entry *pe = malloc (sizeof (struct page_entry));
+    if (pe == NULL)
+      return false;
+    
+    pe->vaddr = upage;
+    pe->kaddr = kpage;
+    pe->is_loaded = false;
+    pe->writable = writable;
+    pe->type = type;
+    pe->file = file;
+    pe->ofs = ofs;
+    pe->read_bytes = read_bytes;
+    pe->zero_bytes = zero_bytes;
+
+    lock_acquire(&t->spt_lock);
+    spt_insert_page(&t->spt, pe);
+    lock_release(&t->spt_lock);
+
+    return true;
   }
