@@ -39,5 +39,5 @@ struct page_entry *spt_find_page (struct hash *, void *);
 bool spt_insert_page (struct hash *, struct page_entry *);
 bool spt_delete_page (struct hash *, struct page_entry *);
 void spt_destroy (struct hash *);
-
+void page_destructor (struct hash_elem *, void *aux);
 #endif

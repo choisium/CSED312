@@ -1,6 +1,7 @@
 #include <hash.h>
 #include "vm/page.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 bool spt_init (struct hash *h)
  {
@@ -8,7 +9,7 @@ bool spt_init (struct hash *h)
  }
 
 uint32_t
-spt_hash_func (const struct hash_elem *e, void *aux)
+spt_hash_func (const struct hash_elem *e, void *aux UNUSED)
   {
     const struct page_entry *p = hash_entry (e, struct page_entry, elem);
     return hash_int((uint32_t) p->vaddr);
@@ -16,7 +17,7 @@ spt_hash_func (const struct hash_elem *e, void *aux)
 
 /* Compare function for wakeup_tick in acending order*/
 bool
-spt_less_func (const struct hash_elem *a_, const struct hash_elem *b_, void *aux) 
+spt_less_func (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED) 
   {
     const struct page_entry *a = hash_entry (a_, struct page_entry, elem);
     const struct page_entry *b = hash_entry (b_, struct page_entry, elem);
@@ -56,5 +57,12 @@ spt_delete_page (struct hash *spt, struct page_entry *page)
 void 
 spt_destroy (struct hash *spt)
   {
-    hash_destroy (spt, NULL);
+    hash_destroy (spt, page_destructor);
+  }
+
+void
+page_destructor (struct hash_elem *e, void *aux UNUSED)
+  {
+    struct page_entry *p = hash_entry (e, struct page_entry, elem);
+    free (p);
   }

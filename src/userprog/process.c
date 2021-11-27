@@ -210,6 +210,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  
+  /* destroy spt table */
+  spt_destroy(cur->spt);
 }
 
 /* Sets up the CPU for running user code in the current
