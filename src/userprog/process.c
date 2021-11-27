@@ -79,6 +79,9 @@ start_process (void *file_name_)
   /* Parse commands */
   argc = parse_command(file_name, argv);
 
+  /* Initialize supplemental page table spt */
+  spt_init(t->spt);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;

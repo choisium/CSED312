@@ -8,6 +8,9 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #endif
+#ifdef VM
+#include <hash.h>
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -117,6 +120,8 @@ struct thread
     bool terminated_by_exit;            /* Flag for terminated by exit() syscall. */
     struct semaphore wait_sema;         /* Semaphore for waiting termination. */
 #endif
+
+   struct hash spt;                     /* Supplemental Page hash table */
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
