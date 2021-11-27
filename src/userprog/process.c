@@ -20,6 +20,7 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -80,7 +81,7 @@ start_process (void *file_name_)
   argc = parse_command(file_name, argv);
 
   /* Initialize supplemental page table spt */
-  spt_init(t->spt);
+  spt_init(&t->spt);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -212,7 +213,7 @@ process_exit (void)
     }
   
   /* destroy spt table */
-  spt_destroy(cur->spt);
+  spt_destroy(&cur->spt);
 }
 
 /* Sets up the CPU for running user code in the current
