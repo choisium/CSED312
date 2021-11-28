@@ -7,7 +7,7 @@
 #include "threads/thread.h"
 #include "vm/page.h"
 #include "userprog/process.h"
-
+#include "threads/vaddr.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -161,6 +161,12 @@ page_fault (struct intr_frame *f)
          if (!demand_page (pe))
             exit(-1);
      }
+   else
+     {
+        exit(-1);
+     }
+   
+
 #else
   exit(-1);
 
