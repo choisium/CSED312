@@ -27,6 +27,7 @@ void add_frame (struct frame *);
 struct frame * del_frame (struct frame *);
 struct frame * find_frame (struct page_entry *);
 
-struct frame * alloc_frame (enum palloc_flags flags);
+struct frame * allocate_frame (enum palloc_flags flags);
 bool free_frame (struct frame *);
+void map_page_to_frame (struct frame *, struct page_entry *);
 #endif

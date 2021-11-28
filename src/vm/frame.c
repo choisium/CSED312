@@ -77,7 +77,7 @@ find_frame (struct page_entry* page)
 }
 
 struct frame *
-alloc_frame (enum palloc_flags flags)
+allocate_frame (enum palloc_flags flags)
 {
     uint8_t *kpage = palloc_get_page (flags);
     if (kpage == NULL)
@@ -102,6 +102,13 @@ free_frame (struct frame *frame)
     if (f == NULL)
         return false;
     
+    palloc_free_page(f->paddr);
     free (f);
     return true;
+}
+
+void
+map_page_to_frame (struct frame *fr, struct page_entry *pe)
+{
+    fr->page = pe;
 }

@@ -71,7 +71,7 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
   }
 
 bool
-set_page_entry (struct file *file, off_t ofs, uint8_t *upage, void *kpage,
+set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *f,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable, enum page_type type) 
   {
     struct thread *t = thread_current ();
@@ -84,7 +84,7 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, void *kpage,
       return false;
     
     pe->vaddr = upage;
-    pe->kaddr = kpage;
+    pe->frame = f;
     pe->is_loaded = false;
     pe->writable = writable;
     pe->type = type;
@@ -97,6 +97,11 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, void *kpage,
     spt_insert_page(&t->spt, pe);
     lock_release(&t->spt_lock);
 
+    if (f != NULL)
+      {
+        map_page_to_frame(f, pe);
+      }
+    
     return true;
   }
 
@@ -113,4 +118,12 @@ load_file (void *kaddr, struct page_entry *pe)
   
   memset (kaddr + pe->read_bytes, 0, pe->zero_bytes);
   return true;
+}
+
+void
+map_frame_to_page (struct page_entry *pe, struct frame *fr)
+{
+  ASSERT (pe->frame == NULL)
+
+  pe->frame = fr;
 }

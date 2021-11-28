@@ -3,6 +3,8 @@
 
 #include <hash.h>
 #include "filesys/file.h"
+#include "vm/frame.h"
+
 /* Types of page entry. */
 enum page_type
   {
@@ -20,8 +22,7 @@ struct page_entry
 
     struct file* file;         // mapped file
 
-    // struct frame* frame
-    void* kaddr;
+    struct frame* frame;       // mapped frame
 
     off_t ofs;                 // file offset
     uint32_t read_bytes;
@@ -44,7 +45,8 @@ void spt_destroy (struct hash *);
 void page_destructor (struct hash_elem *, void *aux);
 
 /* Lazy Loading */
-bool set_page_entry (struct file *, off_t, uint8_t *, void *, 
+bool set_page_entry (struct file *, off_t, uint8_t *, struct frame*, 
                     uint32_t, uint32_t, bool, enum page_type); 
 bool load_file (void *, struct page_entry *);
+void map_frame_to_page (struct page_entry *, struct frame *);
 #endif

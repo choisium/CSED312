@@ -547,20 +547,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  struct frame *f;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  f = allocate_frame (PAL_USER | PAL_ZERO);
+  if (f != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, f->paddr, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+        free_frame (f);
     }
 #ifdef VM
-  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, kpage, 
+  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, f, 
                 0, 0, true, PG_SWAP);
 #endif
   return success;
@@ -744,27 +744,30 @@ demand_page (struct page_entry *pe)
 {
   ASSERT(pe != NULL)
 
-  /* Get a page of memory. */
-  uint8_t *kpage = palloc_get_page (PAL_USER);
-  if (kpage == NULL)
+  /* Get a frame of memory. */
+  struct frame *fr = allocate_frame (PAL_USER);
+  if (fr == NULL)
     return false;
 
   switch (pe->type)
     {
       case PG_FILE:
         /* load the page. */
-        if (!load_file(kpage, pe))
+        if (!load_file(fr->paddr, pe))
           return false;
         break;
       default:
         break;
     }
   
-  if (!install_page(pe->vaddr, kpage, pe->writable))
+  if (!install_page(pe->vaddr, fr->paddr, pe->writable))
     {
-      palloc_free_page (kpage);
+      free_frame (fr);
       return false; 
     }
   
+  map_frame_to_page (pe, fr);
+  map_page_to_frame (fr, pe);
+
   return true;
 }
