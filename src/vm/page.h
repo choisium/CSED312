@@ -44,5 +44,7 @@ void spt_destroy (struct hash *);
 void page_destructor (struct hash_elem *, void *aux);
 
 /* Lazy Loading */
-bool set_page_entry (struct file *, off_t, uint8_t *, void *, uint32_t, uint32_t, bool, enum page_type); 
+bool set_page_entry (struct file *, off_t, uint8_t *, void *, 
+                    uint32_t, uint32_t, bool, enum page_type); 
+bool load_file (void *, struct page_entry *);
 #endif

@@ -5,6 +5,8 @@
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/page.h"
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -149,6 +151,17 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+#ifdef VM
+   if (not_present)
+     {
+        struct page_entry *pe = spt_find_page (&thread_current ()->spt, fault_addr);
+         if (pe == NULL)
+            exit(-1);
+
+         if (!demand_page (pe))
+            exit(-1);
+     }
+#else
   exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
@@ -160,5 +173,6 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
+#endif
 }
 

@@ -4,6 +4,8 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "threads/palloc.h"
+#include <string.h>
 
 bool spt_init (struct hash *h)
  {
@@ -97,3 +99,18 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, void *kpage,
 
     return true;
   }
+
+/* Load the page from the disk. */
+bool
+load_file (void *kaddr, struct page_entry *pe)
+{
+  if (file_read_at (pe->file, kaddr, pe->read_bytes, pe->ofs) 
+    != (int) pe->read_bytes)
+    {
+      palloc_free_page (kaddr);
+      return false; 
+    }
+  
+  memset (kaddr + pe->read_bytes, 0, pe->zero_bytes);
+  return true;
+}

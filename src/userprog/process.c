@@ -734,3 +734,34 @@ process_remove_child (struct thread *child)
   
   palloc_free_page (child);
 }
+
+/* Demand page when page fault occurs */
+bool
+demand_page (struct page_entry *pe)
+{
+  ASSERT(pe != NULL)
+
+  /* Get a page of memory. */
+  uint8_t *kpage = palloc_get_page (PAL_USER);
+  if (kpage == NULL)
+    return false;
+
+  switch (pe->type)
+    {
+      case PG_FILE:
+        /* load the page. */
+        if (!load_file(kpage, pe))
+          return false;
+        break;
+      default:
+        break;
+    }
+  
+  if (!install_page(pe->vaddr, kpage, pe->writable))
+    {
+      palloc_free_page (kpage);
+      return false; 
+    }
+  
+  return true;
+}
