@@ -547,20 +547,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  struct frame *f;
+  struct frame *fr;
   bool success = false;
 
-  f = allocate_frame (PAL_USER | PAL_ZERO);
-  if (f != NULL) 
+  fr = allocate_frame (PAL_USER | PAL_ZERO);
+  if (fr != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, f->paddr, true);
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, fr->paddr, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        free_frame (f);
+        free_frame (fr);
     }
 #ifdef VM
-  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, f, 
+  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
                 0, 0, true, PG_SWAP);
 #endif
   return success;

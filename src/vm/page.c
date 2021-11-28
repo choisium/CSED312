@@ -40,18 +40,18 @@ spt_find_page (struct hash *spt, void *vaddr)
  }
 
 bool 
-spt_insert_page (struct hash *spt, struct page_entry *page)
+spt_insert_page (struct hash *spt, struct page_entry *pe)
  {
-   if (hash_insert (spt, &page->elem) != NULL)
+   if (hash_insert (spt, &pe->elem) != NULL)
     return false;
    else
     return true;
  }
 
 bool 
-spt_delete_page (struct hash *spt, struct page_entry *page)
+spt_delete_page (struct hash *spt, struct page_entry *pe)
   {
-    if (hash_delete (spt, &page->elem) != NULL)
+    if (hash_delete (spt, &pe->elem) != NULL)
       return true;
     else
       return false;
@@ -71,7 +71,7 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
   }
 
 bool
-set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *f,
+set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *fr,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable, enum page_type type) 
   {
     struct thread *t = thread_current ();
@@ -84,7 +84,7 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *f,
       return false;
     
     pe->vaddr = upage;
-    pe->frame = f;
+    pe->frame = fr;
     pe->is_loaded = false;
     pe->writable = writable;
     pe->type = type;
@@ -97,9 +97,9 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *f,
     spt_insert_page(&t->spt, pe);
     lock_release(&t->spt_lock);
 
-    if (f != NULL)
+    if (fr != NULL)
       {
-        map_page_to_frame(f, pe);
+        map_page_to_frame(fr, pe);
       }
     
     return true;

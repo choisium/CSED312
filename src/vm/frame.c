@@ -30,7 +30,7 @@ del_frame (struct frame* frame)
 {
     ASSERT (frame != NULL);
     
-    struct frame *f = NULL;
+    struct frame *fr = NULL;
     struct list_elem *e;
 
     lock_acquire(&frame_table->lock);
@@ -39,25 +39,25 @@ del_frame (struct frame* frame)
     for (e = list_begin (&frame_table->list); e != list_end (&frame_table->list);
         e = list_next (e))
       {
-        f = list_entry (e, struct frame, elem);
-        if (frame == f)
+        fr = list_entry (e, struct frame, elem);
+        if (frame == fr)
             list_remove(e);
       }
 
     lock_release(&frame_table->lock);
 
-    ASSERT (f != NULL);
+    ASSERT (fr != NULL);
 
-    if (f == NULL)
+    if (fr == NULL)
         return NULL;
 
-    return f;
+    return fr;
 }
 
 struct frame *
-find_frame (struct page_entry* page)
+find_frame (struct page_entry* pe)
 {
-    ASSERT (page != NULL);
+    ASSERT (pe != NULL);
 
     struct list_elem *e;
 
@@ -66,9 +66,9 @@ find_frame (struct page_entry* page)
     for (e = list_begin (&frame_table->list); e != list_end (&frame_table->list);
         e = list_next (e))
         {
-        struct frame *f = list_entry (e, struct frame, elem);
-        if (page == f->page)
-            return f;
+        struct frame *fr = list_entry (e, struct frame, elem);
+        if (pe == fr->page)
+            return fr;
         }
 
     lock_release(&frame_table->lock);
@@ -83,14 +83,14 @@ allocate_frame (enum palloc_flags flags)
     if (kpage == NULL)
         return NULL;
 
-    struct frame *f = (struct frame *) malloc (sizeof (struct frame));
+    struct frame *fr = (struct frame *) malloc (sizeof (struct frame));
 
-    f->paddr = (void *) kpage;
-    f->owner = thread_current ();
-    f->page = NULL;
+    fr->paddr = (void *) kpage;
+    fr->owner = thread_current ();
+    fr->page = NULL;
 
-    add_frame(f);
-    return f;
+    add_frame(fr);
+    return fr;
 }
 
 bool
@@ -98,12 +98,12 @@ free_frame (struct frame *frame)
 {
     ASSERT (frame != NULL);
 
-    struct frame *f = del_frame(frame);
-    if (f == NULL)
+    struct frame *fr = del_frame(frame);
+    if (fr == NULL)
         return false;
     
-    palloc_free_page(f->paddr);
-    free (f);
+    palloc_free_page(fr->paddr);
+    free (fr);
     return true;
 }
 
