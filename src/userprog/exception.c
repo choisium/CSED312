@@ -206,7 +206,7 @@ check_stack_validity (const void *vaddr, struct intr_frame *f)
   struct page_entry *pe;
 
   /* Check if the access to stack is valid */
-  if (aligned_vaddr > PHYS_BASE - 8388608) {
+  if (aligned_vaddr > PHYS_BASE - STACK_SIZE_LIMIT && vaddr >= (f->esp - 32)) {
     /* Set up new page entry for this region */
     if (!set_page_entry(NULL, 0, pg_round_down(vaddr), NULL,
                             0, 0, true, PG_SWAP))
