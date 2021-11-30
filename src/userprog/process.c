@@ -20,6 +20,10 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#ifdef VM
+#include "vm/page.h"
+#include "vm/frame.h"
+#endif
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -78,6 +82,12 @@ start_process (void *file_name_)
 
   /* Parse commands */
   argc = parse_command(file_name, argv);
+
+#ifdef VM
+  /* Initialize supplemental page table spt */
+  spt_init(&t->spt);
+  lock_init(&t->spt_lock);
+#endif
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -207,6 +217,11 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  
+#ifdef VM
+  /* destroy spt table */
+  spt_destroy(&cur->spt);
+#endif
 }
 
 /* Sets up the CPU for running user code in the current
@@ -492,6 +507,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+#ifdef VM
+      if (!set_page_entry(file, ofs, upage, NULL, read_bytes, 
+                          zero_bytes, writable, PG_FILE))
+        return false;
+      
+      ofs += page_read_bytes;
+#else
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
@@ -511,7 +533,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
-
+#endif
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -525,18 +547,22 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  struct frame *fr;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
+  fr = allocate_frame (PAL_USER | PAL_ZERO);
+  if (fr != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, fr->paddr, true);
       if (success)
         *esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+        free_frame (fr);
     }
+#ifdef VM
+  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
+                0, 0, true, PG_SWAP);
+#endif
   return success;
 }
 
@@ -710,4 +736,38 @@ process_remove_child (struct thread *child)
     }
   
   palloc_free_page (child);
+}
+
+/* Demand page when page fault occurs */
+bool
+demand_page (struct page_entry *pe)
+{
+  ASSERT(pe != NULL)
+
+  /* Get a frame of memory. */
+  struct frame *fr = allocate_frame (PAL_USER);
+  if (fr == NULL)
+    return false;
+
+  switch (pe->type)
+    {
+      case PG_FILE:
+        /* load the page. */
+        if (!load_file(fr->paddr, pe))
+          return false;
+        break;
+      default:
+        break;
+    }
+  
+  if (!install_page(pe->vaddr, fr->paddr, pe->writable))
+    {
+      free_frame (fr);
+      return false; 
+    }
+  
+  map_frame_to_page (pe, fr);
+  map_page_to_frame (fr, pe);
+
+  return true;
 }

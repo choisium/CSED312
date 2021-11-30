@@ -3,6 +3,7 @@
 
 #include "threads/thread.h"
 #include "filesys/file.h"
+#include "vm/page.h"
 
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
@@ -16,5 +17,6 @@ void process_close_file (int fd);
 typedef int pid_t;
 struct thread *process_get_child (pid_t);
 void process_remove_child (struct thread *);
+bool demand_page (struct page_entry *);
 
 #endif /* userprog/process.h */

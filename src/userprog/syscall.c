@@ -9,6 +9,7 @@
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
+#include "vm/page.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
@@ -44,7 +45,7 @@ check_address_validity (const void *vaddr) {
   struct thread *t = thread_current();
 
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
-      && pagedir_get_page(t->pagedir, vaddr) != NULL)
+      && spt_find_page(&t->spt, vaddr) != NULL)
     return true;
 
   return false;
