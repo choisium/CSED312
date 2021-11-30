@@ -38,7 +38,7 @@ bool spt_less_func (const struct hash_elem *,
                              void *aux);
 
 /* SPT Table Managing Functions */
-struct page_entry *spt_find_page (struct hash *, void *);
+struct page_entry *spt_find_page (struct hash *, const void *);
 bool spt_insert_page (struct hash *, struct page_entry *);
 bool spt_delete_page (struct hash *, struct page_entry *);
 void spt_destroy (struct hash *);

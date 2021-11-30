@@ -29,7 +29,7 @@ spt_less_func (const struct hash_elem *a_, const struct hash_elem *b_, void *aux
   }
 
 struct page_entry *
-spt_find_page (struct hash *spt, void *vaddr)
+spt_find_page (struct hash *spt, const void *vaddr)
  {
    struct page_entry p;
    struct hash_elem *e;
