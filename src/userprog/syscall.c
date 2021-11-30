@@ -43,13 +43,15 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 static bool
 check_address_validity (const void *vaddr) {
   #ifdef VM
-  return true;
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4))
+    return true;
+  return false;
   #endif
 
   struct thread *t = thread_current();
 
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
-      && spt_find_page(&t->spt, vaddr) != NULL)
+      && pagedir_get_page(t->pagedir, vaddr) != NULL)
     return true;
 
   return false;
