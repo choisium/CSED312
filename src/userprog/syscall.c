@@ -42,6 +42,10 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 /* Check address given from user is valid or not */
 static bool
 check_address_validity (const void *vaddr) {
+  #ifdef VM
+  return true;
+  #endif
+
   struct thread *t = thread_current();
 
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
@@ -69,6 +73,13 @@ syscall_handler (struct intr_frame *f)
   if (!valid) exit(-1);
 
   number = *(uint32_t *) f->esp;
+
+  #ifdef VM
+  /* The processor only saves the stack pointer when an
+      exception causes a switch from user to kernel mode.
+      Therefore we need to save esp of intr_frame. */
+  thread_current()->esp = f->esp;
+  #endif
 
   switch (number) {
     case SYS_HALT:

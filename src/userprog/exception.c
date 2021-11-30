@@ -171,9 +171,8 @@ page_fault (struct intr_frame *f)
       struct page_entry *pe = spt_find_page (&thread_current ()->spt, fault_addr);
         if (pe == NULL)
           {
-            if (!check_stack_validity(fault_addr, f)) {
+            if (!check_stack_validity(fault_addr, f))
               exit(-1);
-            }
           }
         else if (!demand_page (pe))
           exit(-1);
@@ -193,19 +192,22 @@ page_fault (struct intr_frame *f)
 static bool
 check_stack_validity (const void *vaddr, struct intr_frame *f)
 {
-  uint32_t ALIGN_MASK = 0xfffffffc;
-  void *aligned_vaddr = (void *)((uint32_t) vaddr & ALIGN_MASK);
   struct page_entry *pe;
+  struct thread *cur = thread_current();
+  bool user = (f->error_code & PF_U) != 0;
+  void *esp = user? f->esp: cur->esp;
+
+  printf("vaddr: %x, fr->esp: %x, t->esp: %x\n", vaddr, f->esp, cur->esp);
 
   /* Check if the access to stack is valid */
-  if (aligned_vaddr > PHYS_BASE - STACK_SIZE_LIMIT && vaddr >= (f->esp - 32)) {
+  if (vaddr > (PHYS_BASE - STACK_SIZE_LIMIT) && vaddr >= (esp - 32)) {
     /* Set up new page entry for this region */
     if (!set_page_entry(NULL, 0, pg_round_down(vaddr), NULL,
                             0, 0, true, PG_SWAP))
       return false;
 
     /* Do demand paging for this new page entry */
-    pe = spt_find_page(&thread_current ()->spt, vaddr);
+    pe = spt_find_page(&cur->spt, vaddr);
     ASSERT(pe != NULL);
 
     if (!demand_page(pe)) return false;
