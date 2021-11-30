@@ -197,8 +197,6 @@ check_stack_validity (const void *vaddr, struct intr_frame *f)
   bool user = (f->error_code & PF_U) != 0;
   void *esp = user? f->esp: cur->esp;
 
-  printf("vaddr: %x, fr->esp: %x, t->esp: %x\n", vaddr, f->esp, cur->esp);
-
   /* Check if the access to stack is valid */
   if (vaddr > (PHYS_BASE - STACK_SIZE_LIMIT) && vaddr >= (esp - 32)) {
     /* Set up new page entry for this region */
