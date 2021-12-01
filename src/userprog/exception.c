@@ -1,18 +1,24 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include <debug.h>
 #include "userprog/gdt.h"
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "vm/page.h"
 #include "userprog/process.h"
 #include "threads/vaddr.h"
+#ifdef VM
+#include "vm/page.h"
+#include "vm/frame.h"
+#endif
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+static bool check_stack_validity (const void *, struct intr_frame *);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -151,34 +157,61 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-#ifdef VM
-   if (not_present)
-     {
-        struct page_entry *pe = spt_find_page (&thread_current ()->spt, fault_addr);
-         if (pe == NULL)
-            exit(-1);
-
-         if (!demand_page (pe))
-            exit(-1);
-     }
-   else
-     {
-        exit(-1);
-     }
-   
-
-#else
-  exit(-1);
-
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
+/*
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  kill (f);
+*/
+
+#ifdef VM
+  if (not_present)
+    {
+      struct page_entry *pe = spt_find_page (&thread_current ()->spt, fault_addr);
+        if (pe == NULL)
+          {
+            if (!check_stack_validity(fault_addr, f))
+              exit(-1);
+          }
+        else if (!demand_page (pe))
+          exit(-1);
+    }
+  else
+    {
+      exit(-1);
+    }
+   
+
+#else
+  exit(-1);
 #endif
 }
 
+/* Check faulted address is in stack region or not */
+static bool
+check_stack_validity (const void *vaddr, struct intr_frame *f)
+{
+  struct page_entry *pe;
+  struct thread *cur = thread_current();
+  bool user = (f->error_code & PF_U) != 0;
+  void *esp = user? f->esp: cur->esp;
+
+  /* Check if the access to stack is valid */
+  if (vaddr > (PHYS_BASE - STACK_SIZE_LIMIT) && vaddr >= (esp - 32)) {
+    /* Set up new page entry for this region */
+    if (!set_page_entry(NULL, 0, pg_round_down(vaddr), NULL,
+                            0, 0, true, PG_SWAP))
+      return false;
+
+    /* Do demand paging for this new page entry */
+    pe = spt_find_page(&cur->spt, vaddr);
+    ASSERT(pe != NULL);
+
+    if (!demand_page(pe)) return false;
+    return true;
+  }
+
+  /* Access to invalid stack region */
+  return false;
+}
