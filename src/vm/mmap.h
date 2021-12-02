@@ -19,6 +19,7 @@ struct mmap_file
 
 bool set_mmap_file (struct mmap_file *, struct file *, void *);
 struct mmap_file *add_mmap_file (struct file *);
-void del_mmap_file (mapid_t);
+struct mmap_file *get_mmap_file (mapid_t);
+void del_mmap_file (struct mmap_file *);
 
 #endif

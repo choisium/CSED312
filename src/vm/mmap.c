@@ -9,7 +9,6 @@
 #include "vm/page.h"
 #include "vm/mmap.h"
 
-static struct mmap_file *get_mmap_file (mapid_t);
 
 struct mmap_file *
 add_mmap_file (struct file *file)
@@ -64,7 +63,7 @@ set_mmap_file (struct mmap_file *mmap_file, struct file *file, void *addr)
     return true;
 }
 
-static struct mmap_file *
+struct mmap_file *
 get_mmap_file (mapid_t mapid)
 {
     struct thread * t= thread_current();
@@ -82,10 +81,9 @@ get_mmap_file (mapid_t mapid)
 }
 
 void
-del_mmap_file (mapid_t mapid)
+del_mmap_file (struct mmap_file *mf)
 {
     struct thread *t = thread_current();
-    struct mmap_file *mf = get_mmap_file(mapid);
     struct list_elem *e;
     struct page_entry *pe;
 

@@ -378,5 +378,7 @@ mmap (int fd, void *addr)
 static void
 munmap (mapid_t mapid)
 {
-  del_mmap_file(mapid);
+  struct mmap_file *mf = get_mmap_file(mapid);
+  if (mf != NULL)
+    del_mmap_file(mf);
 }
