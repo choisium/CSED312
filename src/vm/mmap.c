@@ -106,3 +106,20 @@ del_mmap_file (struct mmap_file *mf)
     file_close(mf->file);
     free (mf);
 }
+
+void
+mmap_file_list_destroy (void)
+{
+    struct thread *t = thread_current();
+    struct list_elem *e;
+    struct mmap_file *mf;
+
+    /* Remove page_entry from spt of thread and page_list of mmap_file */
+    for (e = list_begin (&t->mmap_file_list); e != list_end (&t->mmap_file_list); )
+    {
+        mf = list_entry (e, struct mmap_file, elem);
+        list_remove(e);
+        e = list_next(e);
+        del_mmap_file(mf);
+    }
+}
