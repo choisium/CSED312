@@ -17,7 +17,8 @@ struct mmap_file
     struct list page_list;  /* Mapped page list */
   };
 
-bool set_mmap_file (struct mmap_file *mmap_file, struct file *file, void *addr);
+bool set_mmap_file (struct mmap_file *, struct file *, void *);
 struct mmap_file *add_mmap_file (struct file *);
+void del_mmap_file (mapid_t);
 
 #endif

@@ -1,12 +1,15 @@
 #include <debug.h>
+#include <hash.h>
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "userprog/process.h"
+#include "userprog/pagedir.h"
 #include "filesys/file.h"
 #include "vm/page.h"
 #include "vm/mmap.h"
 
+static struct mmap_file *get_mmap_file (mapid_t);
 
 struct mmap_file *
 add_mmap_file (struct file *file)
@@ -59,4 +62,49 @@ set_mmap_file (struct mmap_file *mmap_file, struct file *file, void *addr)
     }
 
     return true;
+}
+
+static struct mmap_file *
+get_mmap_file (mapid_t mapid)
+{
+    struct thread * t= thread_current();
+    struct list_elem *e;
+
+    for (e = list_begin (&t->mmap_file_list); e != list_end (&t->mmap_file_list);
+        e = list_next (e))
+      {
+          struct mmap_file *mf = list_entry (e, struct mmap_file, elem);
+          if (mf->mapid == mapid)
+            return mf;
+      }
+
+    return NULL;
+}
+
+void
+del_mmap_file (mapid_t mapid)
+{
+    struct thread *t = thread_current();
+    struct mmap_file *mf = get_mmap_file(mapid);
+    struct list_elem *e;
+    struct page_entry *pe;
+
+    /* Remove page_entry from spt of thread and page_list of mmap_file */
+    for (e = list_begin (&mf->page_list); e != list_end (&mf->page_list); )
+      {
+        pe = list_entry (e, struct page_entry, mmap_elem);
+        spt_delete_page(&t->spt, pe);
+        list_remove(e);
+
+        if (pe->writable && pagedir_is_dirty(thread_current()->pagedir, pe->vaddr)) {
+            file_write_at(pe->file, pe->vaddr, pe->read_bytes, pe->ofs);
+        }
+
+        e = list_next(e);
+        free(pe);
+      }
+
+    list_remove(&mf->elem);
+    file_close(mf->file);
+    free (mf);
 }

@@ -175,7 +175,7 @@ syscall_handler (struct intr_frame *f)
       valid = check_address_validity((void *) args[1]);
       if (!valid) exit(-1);
 
-      mmap(args[0], (void *) args[1]);
+      f->eax = mmap(args[0], (void *) args[1]);
       break;
 
     case SYS_MUNMAP:
@@ -378,5 +378,5 @@ mmap (int fd, void *addr)
 static void
 munmap (mapid_t mapid)
 {
-  return;
+  del_mmap_file(mapid);
 }
