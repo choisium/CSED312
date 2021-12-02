@@ -752,6 +752,7 @@ demand_page (struct page_entry *pe)
   switch (pe->type)
     {
       case PG_FILE:
+      case PG_MMAP:
         /* load the page. */
         if (!load_file(fr->paddr, pe))
           return false;
