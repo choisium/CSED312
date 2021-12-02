@@ -356,7 +356,7 @@ check_mmap_validity(int fd, void *addr)
 
   for (i = 0; i < size; i += PGSIZE)
   {
-    if (spt_find_page(&thread_current()->spt, addr + i - 1) != NULL)
+    if (spt_find_page(&thread_current()->spt, addr + i))
       return false;
   }
 
