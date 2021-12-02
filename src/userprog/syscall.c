@@ -172,9 +172,6 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_MMAP:
       syscall_get_argument(f, 2, args);
-      valid = check_address_validity((void *) args[1]);
-      if (!valid) exit(-1);
-
       f->eax = mmap(args[0], (void *) args[1]);
       break;
 
