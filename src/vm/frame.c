@@ -5,6 +5,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
+#include "vm/swap.h"
 
 static struct frame_table* frame_table;
  
@@ -143,7 +144,7 @@ choose_victim (void)
         if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
           {
             victim = fr;
-            frame_table->clock_hand = list_next (e);
+            clock_hand_elem = list_next (e);
             break;
           }
         else
@@ -184,9 +185,34 @@ evict_frame (void)
 {
     struct frame *victim = choose_victim ();
     
-    /*
-    FREE VICTIM
-    */
+    /* If victim is dirty, Swap out. */
+    if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
+      {
+          /* If PG_MMAP, just write at file. */
+          if (victim->page->type == PG_MMAP)
+            {
+                if (victim->page->writable) 
+                  {
+                    file_write_at(victim->page->file, victim->page->vaddr, 
+                                victim->page->read_bytes, victim->page->ofs);
+                  }
+            }
+          
+          /* Swap out the others. */
+          else
+            {
+                victim->page->type = PG_SWAP;
 
-    return false;
+                swap_index_t swap_idx = swap_out (victim);
+                if (swap_idx == SWAP_ERROR)
+                    return false;
+                
+                victim->page->swap_index = swap_idx;
+            }
+      }
+    
+    if (!free_frame (victim))
+      return false;
+
+    return true;
 }

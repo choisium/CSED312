@@ -2,6 +2,7 @@
 #include "devices/block.h"
 #include "vm/swap.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
 
 static struct block* swap_block;
 static struct bitmap* swap_slot;
@@ -9,7 +10,7 @@ static struct bitmap* swap_slot;
 static size_t SECTORS_PER_PAGE = PGSIZE / BLOCK_SECTOR_SIZE;
 
 void
-swap_init ()
+swap_init (void)
 {
     swap_block = block_get_role (BLOCK_SWAP);
     ASSERT (swap_block != NULL);
@@ -19,4 +20,22 @@ swap_init ()
     ASSERT (swap_slot != NULL);
 
     bitmap_set_all (swap_slot, false);
+}
+
+swap_index_t
+swap_out (struct frame* fr)
+{
+    int i;
+    swap_index_t idx = bitmap_scan (swap_slot, 0, 1, false);
+    if (idx == BITMAP_ERROR)
+      return SWAP_ERROR;
+
+    for (i = 0; i < SECTORS_PER_PAGE; i++)
+      {
+          block_write (swap_block, SECTORS_PER_PAGE * idx + i, fr->paddr);
+          fr->paddr += BLOCK_SECTOR_SIZE;
+      }
+
+    bitmap_flip (swap_slot, idx);
+    return idx;
 }

@@ -1,9 +1,11 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
+#include <stddef.h>
 #include <hash.h>
 #include "filesys/file.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Types of page entry. */
 enum page_type
@@ -30,6 +32,8 @@ struct page_entry
     struct hash_elem elem;     // hash elem for spt hash table
 
     struct list_elem mmap_elem; // list element for mmap_file.page_list
+
+    swap_index_t swap_index;      // Swap partition index that page is stored.
   };
 
 /* SPT Table Initialization */
