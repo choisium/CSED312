@@ -12,7 +12,8 @@ enum page_type
   {
     PG_FILE,            /* Load from Binary. */
     PG_MMAP,            /* Load from Memory Mapped File. */
-    PG_SWAP             /* Load from Swap slot. */
+    PG_SWAP,            /* Load from Swap slot. */
+    PG_STACK            /* For stack. */  
   };
 
 struct page_entry

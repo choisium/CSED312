@@ -566,7 +566,7 @@ setup_stack (void **esp)
     }
 #ifdef VM
   set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
-                0, 0, true, PG_SWAP);
+                0, 0, true, PG_STACK);
 #endif
   return success;
 }
