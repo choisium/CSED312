@@ -762,6 +762,9 @@ demand_page (struct page_entry *pe)
         if (!load_file(fr->paddr, pe))
           return false;
         break;
+      case PG_SWAP:
+        swap_in (pe->swap_index, fr);
+        break;
       default:
         break;
     }

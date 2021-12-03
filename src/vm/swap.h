@@ -12,5 +12,5 @@ void swap_init (void);
 
 struct frame;
 swap_index_t swap_out (struct frame *);
-
+void swap_in (swap_index_t, struct frame*);
 #endif

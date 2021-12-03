@@ -92,7 +92,8 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *fr,
     pe->ofs = ofs;
     pe->read_bytes = read_bytes;
     pe->zero_bytes = zero_bytes;
-
+    pe->swap_index = SWAP_ERROR;
+    
     spt_insert_page(&t->spt, pe);
 
     if (fr != NULL)
