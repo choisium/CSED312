@@ -93,9 +93,7 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *fr,
     pe->read_bytes = read_bytes;
     pe->zero_bytes = zero_bytes;
 
-    lock_acquire(&t->spt_lock);
     spt_insert_page(&t->spt, pe);
-    lock_release(&t->spt_lock);
 
     if (fr != NULL)
       {

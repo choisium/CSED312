@@ -87,7 +87,6 @@ start_process (void *file_name_)
 #ifdef VM
   /* Initialize supplemental page table spt */
   spt_init(&t->spt);
-  lock_init(&t->spt_lock);
 #endif
 
   /* Initialize interrupt frame and load executable. */

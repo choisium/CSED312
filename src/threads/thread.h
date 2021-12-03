@@ -127,7 +127,6 @@ struct thread
 
 #ifdef VM
    struct hash spt;                     /* Supplemental Page hash table */
-   struct lock spt_lock;                /* Lock for spt table. */
    void *esp;                           /* Save stack pointer on the initial
                                            transition from user to kernel mode.  */
    struct list mmap_file_list;          /* Memory-mapped file list. */
