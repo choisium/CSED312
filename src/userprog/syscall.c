@@ -10,11 +10,13 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "vm/page.h"
+#include "vm/mmap.h"
 
 /* Auxiliary functions to implement syscall */
 static void syscall_handler (struct intr_frame *);
 static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
+static bool check_mmap_validity(int fd, void *addr);
 
 /* Syscall handlers for each system call numbers */
 static void halt (void);
@@ -29,6 +31,8 @@ static void close (int);
 static int filesize (int);
 static void seek (int, unsigned);
 static unsigned tell (int);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t);
 
 /* Get arguments from interrupt frame and store it in argv */
 static void
@@ -164,6 +168,16 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE:
       syscall_get_argument(f, 1, args);
       close(args[0]);
+      break;
+
+    case SYS_MMAP:
+      syscall_get_argument(f, 2, args);
+      f->eax = mmap(args[0], (void *) args[1]);
+      break;
+
+    case SYS_MUNMAP:
+      syscall_get_argument(f, 1, args);
+      munmap(args[0]);
       break;
   }
 }
@@ -316,4 +330,52 @@ tell (int fd)
   struct file *file_object = process_get_file(fd);
   if (file_object == NULL) exit(-1);
   return file_tell(file_object);
+}
+
+static bool
+check_mmap_validity(int fd, void *addr)
+{
+  off_t size, i;
+  struct file *f = process_get_file(fd);
+
+  if (f == NULL)
+      return false;
+
+  size = file_length(f);
+  if (size == 0)
+    return false;
+
+  if (!check_address_validity(addr))
+    return false;
+
+  if (addr == 0 || addr != pg_round_down(addr))
+    return false;
+
+  for (i = 0; i < size; i += PGSIZE)
+  {
+    if (spt_find_page(&thread_current()->spt, addr + i))
+      return false;
+  }
+
+  return true;
+}
+
+static mapid_t
+mmap (int fd, void *addr)
+{
+  if (!check_mmap_validity(fd, addr))
+    return -1;
+  struct file *file = process_get_file(fd);
+  struct mmap_file *mmap_file = add_mmap_file(file);
+  if (!mmap_file) return -1;
+  if (!set_mmap_file(mmap_file, file, addr)) return -1;
+  return mmap_file->mapid;
+}
+
+static void
+munmap (mapid_t mapid)
+{
+  struct mmap_file *mf = get_mmap_file(mapid);
+  if (mf != NULL)
+    del_mmap_file(mf);
 }

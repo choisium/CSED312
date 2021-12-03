@@ -28,6 +28,8 @@ struct page_entry
     uint32_t read_bytes;
     uint32_t zero_bytes;
     struct hash_elem elem;     // hash elem for spt hash table
+
+    struct list_elem mmap_elem; // list element for mmap_file.page_list
   };
 
 /* SPT Table Initialization */

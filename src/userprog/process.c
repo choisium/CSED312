@@ -23,6 +23,7 @@
 #ifdef VM
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/mmap.h"
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -200,6 +201,11 @@ process_exit (void)
       file_allow_write (cur->running_file);
       file_close (cur->running_file);
     }
+
+  #ifdef VM
+    /* destroy mmap_file_list */
+    mmap_file_list_destroy();
+  #endif
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -752,6 +758,7 @@ demand_page (struct page_entry *pe)
   switch (pe->type)
     {
       case PG_FILE:
+      case PG_MMAP:
         /* load the page. */
         if (!load_file(fr->paddr, pe))
           return false;

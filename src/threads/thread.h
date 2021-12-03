@@ -26,6 +26,10 @@ enum thread_status
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
+/* Map region identifier. */
+typedef int mapid_t;
+#define MAP_FAILED ((mapid_t) -1)
+
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
@@ -108,9 +112,9 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct file* file_descriptors[FILE_DESCRIPTORS_MAX];
-    int max_fd;
-    struct file* running_file;
+    struct file* file_descriptors[FILE_DESCRIPTORS_MAX]; /* File descriptor array. */
+    int max_fd;                         /* Last fd + 1. */
+    struct file* running_file;          /* Executable file. */
     struct thread* parent;              /* Parent thread. */
     struct list child_list;             /* Child thread list. */
     struct list_elem child_elem;        /* List element for child_list. */
@@ -126,6 +130,8 @@ struct thread
    struct lock spt_lock;                /* Lock for spt table. */
    void *esp;                           /* Save stack pointer on the initial
                                            transition from user to kernel mode.  */
+   struct list mmap_file_list;          /* Memory-mapped file list. */
+   mapid_t max_mapid;                   /* Last mapid + 1. */
 #endif
 
     /* Owned by thread.c. */

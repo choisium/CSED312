@@ -509,6 +509,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
 #ifdef VM
   t->esp = NULL;
+  list_init(&t->mmap_file_list);
+  t->max_mapid = 0;
 #endif
 
   old_level = intr_disable ();
