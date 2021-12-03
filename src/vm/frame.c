@@ -58,22 +58,23 @@ struct frame *
 find_frame (struct page_entry* pe)
 {
     ASSERT (pe != NULL);
-
+    
+    struct frame *fr = NULL;
     struct list_elem *e;
 
     lock_acquire(&frame_table->lock);
 
     for (e = list_begin (&frame_table->list); e != list_end (&frame_table->list);
         e = list_next (e))
-        {
-        struct frame *fr = list_entry (e, struct frame, elem);
+      {
+        fr = list_entry (e, struct frame, elem);
         if (pe == fr->page)
-            return fr;
-        }
+            break;
+      }
 
     lock_release(&frame_table->lock);
     
-    return NULL;
+    return fr;
 }
 
 struct frame *
