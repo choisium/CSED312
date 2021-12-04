@@ -214,5 +214,7 @@ evict_frame (void)
     if (!free_frame (victim))
       return false;
 
+    pagedir_clear_page (victim->owner->pagedir, victim->page->vaddr);
+
     return true;
 }
