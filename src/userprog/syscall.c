@@ -46,12 +46,11 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 /* Check address given from user is valid or not */
 static bool
 check_address_validity (const void *vaddr) {
-  #ifdef VM
+#ifdef VM
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4))
     return true;
   return false;
-  #endif
-
+#else
   struct thread *t = thread_current();
 
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
@@ -59,6 +58,38 @@ check_address_validity (const void *vaddr) {
     return true;
 
   return false;
+#endif
+}
+
+static bool
+check_buffer_validity (const void *buffer, size_t size, bool is_write, struct intr_frame *f)
+{
+  ASSERT (buffer != NULL);
+
+  void *vaddr = buffer;
+
+  while (size > 0)
+  {
+    if (!check_address_validity(vaddr))
+      return false;
+
+    struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
+    if (pe == NULL)
+     {
+       return false;
+     }
+    
+    if (is_write && !pe->writable)
+      return false;
+
+    if (pe->frame != NULL)
+      pe->frame->pinned = true;
+
+    vaddr += PGSIZE;
+    size -= PGSIZE;
+  }
+
+  return true;
 }
 
 void
@@ -141,7 +172,11 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_READ:
       syscall_get_argument(f, 3, args);
+#ifdef VM
+      valid = check_buffer_validity ((void *) args[1], args[2], false, f);
+#else
       valid = check_address_validity((void *) args[1]);
+#endif
       if (!valid) exit(-1);
 
       f->eax = read(args[0], (void *) args[1], args[2]);
