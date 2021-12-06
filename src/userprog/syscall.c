@@ -68,7 +68,7 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
 
   void *vaddr = buffer;
 
-  while (size > 0)
+  while ((int) size > 0)
   {
     if (!check_address_validity(vaddr))
       return false;
@@ -82,8 +82,15 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
     if (is_write && !pe->writable)
       return false;
 
-    if (pe->frame != NULL)
+    if (pe->frame != NULL) {
       pe->frame->pinned = true;
+    } else {
+      if (!demand_page(pe)) {
+        return false;
+      }
+      ASSERT (pe->frame != NULL);
+      pe->frame->pinned = true;
+    }
 
     vaddr += PGSIZE;
     size -= PGSIZE;
