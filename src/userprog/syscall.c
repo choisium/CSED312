@@ -48,8 +48,9 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 static bool
 check_address_validity (const void *vaddr) {
 #ifdef VM
-  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4))
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)) {
     return true;
+  }
   return false;
 #else
   struct thread *t = thread_current();
@@ -76,13 +77,15 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
     }
 
     struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
-    if (pe == NULL && !check_stack_validity(vaddr, f))
-     {
-       return false;
-     }
-    
-    if (is_write && !pe->writable)
+    if (pe == NULL)
+    {
+      if (!check_stack_validity(vaddr, f)) return false;
+      pe = spt_find_page (&thread_current ()->spt, vaddr);
+    }
+ 
+    if (is_write && !pe->writable) {
       return false;
+    }
 
     if (pe->frame != NULL) {
       pe->frame->pinned = true;
