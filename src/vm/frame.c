@@ -142,6 +142,9 @@ choose_victim (void)
     else
       clock_hand_elem = &frame_table->clock_hand->elem;
 
+    int count = 0;
+    while (count < 2) {
+
     /* Choose Victim */
     for (e = clock_hand_elem; e != list_end (&frame_table->list);
         e = list_next (e))
@@ -187,6 +190,14 @@ choose_victim (void)
             pagedir_set_accessed(fr->owner->pagedir, fr->page->vaddr, false);
           }
       }
+    
+    if (victim != NULL)
+    {
+      frame_table->clock_hand = list_entry(clock_hand_elem, struct frame, elem);
+      return victim;
+    }
+    count++;
+    }
 
     frame_table->clock_hand = list_entry (clock_hand_elem, struct frame, elem);
     
@@ -199,7 +210,7 @@ evict_frame (void)
     ASSERT (lock_held_by_current_thread (&frame_table->lock));
     
     struct frame *victim = choose_victim ();
-    
+    ASSERT (victim != NULL);
     /* If victim is dirty, Swap out. */
     if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
       {
