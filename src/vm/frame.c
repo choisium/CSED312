@@ -97,6 +97,7 @@ allocate_frame (enum palloc_flags flags)
     fr->paddr = (void *) kpage;
     fr->owner = thread_current ();
     fr->page = NULL;
+    fr->pinned = false;
 
     add_frame(fr);
 
@@ -146,6 +147,9 @@ choose_victim (void)
         e = list_next (e))
       {
         struct frame *fr = list_entry (e, struct frame, elem);
+        if(fr->pinned)
+          continue;
+
         if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
           {
             victim = fr;
@@ -169,6 +173,9 @@ choose_victim (void)
           e = list_next (e))
       {
         struct frame *fr = list_entry (e, struct frame, elem);
+        if(fr->pinned)
+          continue;
+        
         if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
           {
             victim = fr;

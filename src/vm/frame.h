@@ -13,6 +13,7 @@ struct frame
     struct page_entry *page;        // mapped page entry
     struct thread *owner;           // owner thread
     struct list_elem elem;    // list elem for frame table
+    bool pinned;
 };
 
 struct frame_table
