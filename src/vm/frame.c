@@ -22,9 +22,7 @@ init_frame_table (void)
 void
 add_frame (struct frame* frame)
 {   
-    lock_acquire(&frame_table->lock);
     list_push_back(&frame_table->list, &frame->elem);
-    lock_release(&frame_table->lock);
 }
 
 struct frame*
@@ -82,6 +80,8 @@ find_frame (struct page_entry* pe)
 struct frame *
 allocate_frame (enum palloc_flags flags)
 {
+    lock_acquire(&frame_table->lock);
+
     uint8_t *kpage = palloc_get_page (flags);
     if (kpage == NULL)
       {
@@ -99,6 +99,9 @@ allocate_frame (enum palloc_flags flags)
     fr->page = NULL;
 
     add_frame(fr);
+
+    lock_release(&frame_table->lock);
+
     return fr;
 }
 
@@ -119,12 +122,16 @@ free_frame (struct frame *frame)
 void
 map_page_to_frame (struct frame *fr, struct page_entry *pe)
 {
+    ASSERT (fr->page == NULL)
+
     fr->page = pe;
 }
 
 struct frame *
 choose_victim (void)
 {
+    ASSERT (lock_held_by_current_thread (&frame_table->lock));
+
     struct frame *victim = NULL;
     struct list_elem *clock_hand_elem;
     struct list_elem *e;
@@ -133,8 +140,6 @@ choose_victim (void)
       clock_hand_elem = list_begin(&frame_table->list);
     else
       clock_hand_elem = &frame_table->clock_hand->elem;
-
-    lock_acquire(&frame_table->lock);
 
     /* Choose Victim */
     for (e = clock_hand_elem; e != list_end (&frame_table->list);
@@ -153,27 +158,28 @@ choose_victim (void)
           }
       }
 
-    /* If not found until list_end, start from begin */
-    if (victim == NULL)
+    if (victim != NULL)
       {
-          for (e = list_begin (&frame_table->list); e != clock_hand_elem;
-                e = list_next (e))
-            {
-                struct frame *fr = list_entry (e, struct frame, elem);
-                if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
-                  {
-                    victim = fr;
-                    clock_hand_elem = list_next (e);
-                    break;
-                  }
-                else
-                  {
-                    pagedir_set_accessed(fr->owner->pagedir, fr->page->vaddr, false);
-                  }
-            }
+        frame_table->clock_hand = list_entry (clock_hand_elem, struct frame, elem);
+        return victim;
       }
 
-    lock_release(&frame_table->lock);
+    /* If not found until list_end, start from begin */
+    for (e = list_begin (&frame_table->list); e != clock_hand_elem;
+          e = list_next (e))
+      {
+        struct frame *fr = list_entry (e, struct frame, elem);
+        if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
+          {
+            victim = fr;
+            clock_hand_elem = list_next (e);
+            break;
+          }
+        else
+          {
+            pagedir_set_accessed(fr->owner->pagedir, fr->page->vaddr, false);
+          }
+      }
 
     frame_table->clock_hand = list_entry (clock_hand_elem, struct frame, elem);
     
@@ -183,6 +189,8 @@ choose_victim (void)
 bool
 evict_frame (void)
 {
+    ASSERT (lock_held_by_current_thread (&frame_table->lock));
+    
     struct frame *victim = choose_victim ();
     
     /* If victim is dirty, Swap out. */
