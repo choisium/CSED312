@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "userprog/exception.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
@@ -70,11 +71,12 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
 
   while ((int) size > 0)
   {
-    if (!check_address_validity(vaddr))
+    if (!check_address_validity(vaddr)) {
       return false;
+    }
 
     struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
-    if (pe == NULL)
+    if (pe == NULL && !check_stack_validity(vaddr, f))
      {
        return false;
      }
@@ -184,7 +186,9 @@ syscall_handler (struct intr_frame *f)
 #else
       valid = check_address_validity((void *) args[1]);
 #endif
-      if (!valid) exit(-1);
+      if (!valid) {
+        exit(-1);
+      }
 
       f->eax = read(args[0], (void *) args[1], args[2]);
       break;
