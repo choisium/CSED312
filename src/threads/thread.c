@@ -308,6 +308,12 @@ thread_exit (void)
   sema_up(&t->wait_sema);
 #endif
 
+#ifdef VM
+  if (t == initial_thread)
+    {
+      destroy_frame_table ();
+    }
+#endif
   schedule ();
   NOT_REACHED ();
 }

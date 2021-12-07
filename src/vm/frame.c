@@ -134,6 +134,17 @@ free_frame (struct frame *frame)
 }
 
 void
+destroy_frame_table ()
+{
+  while (!list_empty (&frame_table->list))
+    {
+      struct list_elem *e = list_pop_front (&frame_table->list);
+      struct frame *fr = list_entry (e, struct frame, elem);
+      free_frame (fr);
+    }
+}
+
+void
 map_page_to_frame (struct frame *fr, struct page_entry *pe)
 {
     ASSERT (fr->page == NULL)
