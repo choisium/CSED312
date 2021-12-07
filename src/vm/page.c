@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/palloc.h"
+#include "vm/swap.h"
 #include <string.h>
 
 bool spt_init (struct hash *h)
@@ -67,6 +68,10 @@ void
 page_destructor (struct hash_elem *e, void *aux UNUSED)
   {
     struct page_entry *p = hash_entry (e, struct page_entry, elem);
+    if (p->type == PG_SWAP)
+      {
+        delete_slot (p->swap_index);
+      }
     free (p);
   }
 

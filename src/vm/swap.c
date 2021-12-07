@@ -57,3 +57,10 @@ swap_in (swap_index_t used_idx, struct frame* fr)
     
     bitmap_flip (swap_slot, used_idx);
 }
+
+void
+delete_slot (swap_index_t idx)
+{
+  ASSERT (bitmap_test (swap_slot, idx) == true);
+  bitmap_flip (swap_slot, idx);
+}
