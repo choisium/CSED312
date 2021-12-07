@@ -48,7 +48,7 @@ set_mmap_file (struct mmap_file *mmap_file, struct file *file, void *addr)
         read_bytes = size < PGSIZE ? size : PGSIZE;
         zero_bytes = PGSIZE - read_bytes;
 
-        if(!set_page_entry(mmap_file->file, ofs, upage, NULL,
+        if(!set_page_entry(mmap_file->file, ofs, pg_round_down(upage), NULL,
                         read_bytes, zero_bytes, true, PG_MMAP))
             return false;
 
