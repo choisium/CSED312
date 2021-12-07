@@ -31,6 +31,7 @@ struct frame * find_frame (struct page_entry *);
 struct frame * allocate_frame (enum palloc_flags flags);
 bool free_frame (struct frame *);
 void map_page_to_frame (struct frame *, struct page_entry *);
+void unmap_page (struct frame *);
 
 struct frame * choose_victim (void);
 bool evict_frame (void);

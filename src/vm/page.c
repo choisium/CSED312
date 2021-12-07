@@ -126,3 +126,9 @@ map_frame_to_page (struct page_entry *pe, struct frame *fr)
 
   pe->frame = fr;
 }
+
+void
+unmap_frame (struct page_entry *pe)
+{
+  pe->frame = NULL;
+}

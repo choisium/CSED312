@@ -34,6 +34,12 @@ del_frame (struct frame* frame)
     struct list_elem *e;
     bool acquire_lock = false;
 
+    if (frame->page != NULL)
+      {
+        unmap_frame (frame->page);
+        unmap_page (frame);
+      }
+    
     if (!lock_held_by_current_thread (&frame_table->lock)) {
         acquire_lock = true;
         lock_acquire(&frame_table->lock);
@@ -133,6 +139,12 @@ map_page_to_frame (struct frame *fr, struct page_entry *pe)
     ASSERT (fr->page == NULL)
 
     fr->page = pe;
+}
+
+void
+unmap_page (struct frame *fr)
+{
+  fr->page = NULL;
 }
 
 struct frame *
