@@ -764,6 +764,8 @@ demand_page (struct page_entry *pe)
         break;
       case PG_SWAP:
         swap_in (pe->swap_index, fr);
+        pe->swap_index = SWAP_ERROR;
+        pe->type = PG_FILE;
         break;
       default:
         break;
