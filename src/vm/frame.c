@@ -242,6 +242,8 @@ evict_frame (void)
                 
                 victim->page->swap_index = swap_idx;
             }
+          
+          pagedir_set_dirty (victim->owner->pagedir, victim->page->vaddr, false);
       }
     
     pagedir_clear_page (victim->owner->pagedir, victim->page->vaddr);
