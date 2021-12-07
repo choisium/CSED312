@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "userprog/exception.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
@@ -47,8 +48,9 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 static bool
 check_address_validity (const void *vaddr) {
 #ifdef VM
-  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4))
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)) {
     return true;
+  }
   return false;
 #else
   struct thread *t = thread_current();
@@ -68,22 +70,32 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
 
   void *vaddr = buffer;
 
-  while (size > 0)
+  while ((int) size > 0)
   {
-    if (!check_address_validity(vaddr))
+    if (!check_address_validity(vaddr)) {
       return false;
+    }
 
     struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
     if (pe == NULL)
-     {
-       return false;
-     }
-    
-    if (is_write && !pe->writable)
+    {
+      if (!check_stack_validity(vaddr, f)) return false;
+      pe = spt_find_page (&thread_current ()->spt, vaddr);
+    }
+ 
+    if (is_write && !pe->writable) {
       return false;
+    }
 
-    if (pe->frame != NULL)
+    if (pe->frame != NULL) {
       pe->frame->pinned = true;
+    } else {
+      if (!demand_page(pe)) {
+        return false;
+      }
+      ASSERT (pe->frame != NULL);
+      pe->frame->pinned = true;
+    }
 
     vaddr += PGSIZE;
     size -= PGSIZE;
@@ -177,7 +189,9 @@ syscall_handler (struct intr_frame *f)
 #else
       valid = check_address_validity((void *) args[1]);
 #endif
-      if (!valid) exit(-1);
+      if (!valid) {
+        exit(-1);
+      }
 
       f->eax = read(args[0], (void *) args[1], args[2]);
       break;
