@@ -565,8 +565,11 @@ setup_stack (void **esp)
         free_frame (fr);
     }
 #ifdef VM
-  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
-                0, 0, true, PG_STACK);
+  if (!set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
+                0, 0, true, PG_STACK))
+    {
+      return false;
+    }
 #endif
   return success;
 }
@@ -754,6 +757,9 @@ demand_page (struct page_entry *pe)
   if (fr == NULL)
     return false;
 
+  map_frame_to_page (pe, fr);
+  map_page_to_frame (fr, pe);
+
   switch (pe->type)
     {
       case PG_FILE:
@@ -774,11 +780,12 @@ demand_page (struct page_entry *pe)
   if (!install_page(pe->vaddr, fr->paddr, pe->writable))
     {
       free_frame (fr);
+      pe->frame = NULL;
+      fr->page = NULL;
       return false; 
     }
   
-  map_frame_to_page (pe, fr);
-  map_page_to_frame (fr, pe);
+
 
   return true;
 }
