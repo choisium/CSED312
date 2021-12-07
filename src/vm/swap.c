@@ -27,13 +27,14 @@ swap_out (struct frame* fr)
 {
     size_t i;
     swap_index_t idx = bitmap_scan (swap_slot, 0, 1, false);
+    void * paddr = fr->paddr;
     if (idx == BITMAP_ERROR)
       return SWAP_ERROR;
 
     for (i = 0; i < SECTORS_PER_PAGE; i++)
       {
-          block_write (swap_block, SECTORS_PER_PAGE * idx + i, fr->paddr);
-          fr->paddr += BLOCK_SECTOR_SIZE;
+          block_write (swap_block, SECTORS_PER_PAGE * idx + i, paddr);
+          paddr += BLOCK_SECTOR_SIZE;
       }
 
     bitmap_flip (swap_slot, idx);
@@ -47,10 +48,11 @@ swap_in (swap_index_t used_idx, struct frame* fr)
     ASSERT (bitmap_test (swap_slot, used_idx) == true);
 
     size_t i;
+    void * paddr = fr->paddr;
     for (i = 0; i < SECTORS_PER_PAGE; i++)
       {
-          block_read (swap_block, SECTORS_PER_PAGE * used_idx + i, fr->paddr);
-          fr->paddr += BLOCK_SECTOR_SIZE;
+          block_read (swap_block, SECTORS_PER_PAGE * used_idx + i, paddr);
+          paddr += BLOCK_SECTOR_SIZE;
       }
     
     bitmap_flip (swap_slot, used_idx);
