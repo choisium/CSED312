@@ -180,8 +180,6 @@ page_fault (struct intr_frame *f)
     {
       exit(-1);
     }
-   
-
 #else
   exit(-1);
 #endif
