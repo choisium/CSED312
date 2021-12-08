@@ -22,7 +22,6 @@ struct page_entry
     bool is_loaded;            
     bool writable;
     enum page_type type;       // page type
-    enum page_type init_type;  // initial type
 
     struct file* file;         // mapped file
 

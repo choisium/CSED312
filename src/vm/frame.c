@@ -241,32 +241,45 @@ evict_frame (void)
     
     struct frame *victim = choose_victim ();
     ASSERT (victim != NULL);
-    /* If victim is dirty, Swap out. */
-    if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
-      {
-          /* If PG_MMAP, just write at file. */
-          if (victim->page->type == PG_MMAP)
-            {
-                if (victim->page->writable) 
-                  {
-                    file_write_at(victim->page->file, victim->page->vaddr, 
-                                victim->page->read_bytes, victim->page->ofs);
-                  }
-            }
-          
-          /* Swap out the others. */
-          else
-            {
-                victim->page->type = PG_SWAP;
 
-                swap_index_t swap_idx = swap_out (victim);
-                if (swap_idx == SWAP_ERROR)
-                    return false;
-                
-                victim->page->swap_index = swap_idx;
-            }
-          
-          pagedir_set_dirty (victim->owner->pagedir, victim->page->vaddr, false);
+    /* If page type is SWAP or STACK, ALWAYS store at swap block and change page type to SWAP. */
+    if (victim->page->type == PG_SWAP || victim->page->type == PG_STACK)
+      {
+        victim->page->type = PG_SWAP;
+        swap_index_t swap_idx = swap_out (victim);
+        if (swap_idx == SWAP_ERROR)
+            return false;
+        
+        victim->page->swap_index = swap_idx;
+      }
+    else
+      {
+        /* If victim is dirty, Swap out. */
+        if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
+          {
+            /* If PG_MMAP, just write at file. */
+            if (victim->page->type == PG_MMAP)
+              {
+                  if (victim->page->writable) 
+                    {
+                      file_write_at(victim->page->file, victim->page->vaddr, 
+                                  victim->page->read_bytes, victim->page->ofs);
+                      
+                      pagedir_set_dirty (victim->owner->pagedir, victim->page->vaddr, false);
+                    }
+              }
+            /* If PG_FILE, Swap out and change type into PG_SWAP. */
+            else
+              {
+                  victim->page->type = PG_SWAP;
+
+                  swap_index_t swap_idx = swap_out (victim);
+                  if (swap_idx == SWAP_ERROR)
+                      return false;
+                  
+                  victim->page->swap_index = swap_idx;
+              }
+          }
       }
     
     pagedir_clear_page (victim->owner->pagedir, victim->page->vaddr);

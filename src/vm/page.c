@@ -68,7 +68,7 @@ void
 page_destructor (struct hash_elem *e, void *aux UNUSED)
   {
     struct page_entry *p = hash_entry (e, struct page_entry, elem);
-    if (p->type == PG_SWAP)
+    if (p->type == PG_SWAP && p->swap_index != SWAP_ERROR)
       {
         delete_slot (p->swap_index);
       }
@@ -93,7 +93,6 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *fr,
     pe->is_loaded = false;
     pe->writable = writable;
     pe->type = type;
-    pe->init_type = type;
     pe->file = file;
     pe->ofs = ofs;
     pe->read_bytes = read_bytes;
