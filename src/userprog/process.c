@@ -53,6 +53,13 @@ process_execute (const char *file_name)
 
   /* Parse commands */
   argc = parse_command(file_name, argv);
+  lock_acquire(&file_system_lock);
+  struct file* file = filesys_open(argv[0]);
+  lock_release(&file_system_lock);
+  if (file == NULL) {
+    return -1;
+  }
+  file_close(file);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
