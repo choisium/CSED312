@@ -93,7 +93,6 @@ set_page_entry (struct file *file, off_t ofs, uint8_t *upage, struct frame *fr,
     pe->is_loaded = false;
     pe->writable = writable;
     pe->type = type;
-    pe->init_type = type;
     pe->file = file;
     pe->ofs = ofs;
     pe->read_bytes = read_bytes;
