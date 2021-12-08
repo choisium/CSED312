@@ -204,6 +204,8 @@ process_exit (void)
   #ifdef VM
     /* destroy mmap_file_list */
     mmap_file_list_destroy();
+    /* destroy spt table */
+    spt_destroy(&cur->spt);
   #endif
 
   /* Destroy the current process's page directory and switch back
@@ -223,10 +225,6 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   
-#ifdef VM
-  /* destroy spt table */
-  spt_destroy(&cur->spt);
-#endif
 }
 
 /* Sets up the CPU for running user code in the current
@@ -769,6 +767,7 @@ demand_page (struct page_entry *pe)
           {
             unmap_frame (pe);
             unmap_page (fr);
+            free_frame(fr);
             return false;
           }
         break;
@@ -782,9 +781,9 @@ demand_page (struct page_entry *pe)
   
   if (!install_page(pe->vaddr, fr->paddr, pe->writable))
     {
-      free_frame (fr);
       unmap_frame (pe);
       unmap_page (fr);
+      free_frame (fr);
       return false; 
     }
 
