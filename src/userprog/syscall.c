@@ -341,7 +341,11 @@ write (int fd, const void *buffer, unsigned size)
 static bool
 create (const char *file, unsigned initial_size)
 {
-  return filesys_create(file, initial_size);
+  bool res;
+  lock_acquire(&file_system_lock);
+  res = filesys_create(file, initial_size);
+  lock_release(&file_system_lock);
+  return res;
 }
 
 static bool
@@ -353,8 +357,11 @@ remove (const char *file)
 static int
 open (const char *file)
 {
+  lock_acquire(&file_system_lock);
   struct file *file_object = filesys_open(file);
-  if (file_object == NULL) return -1;
+  lock_release(&file_system_lock);
+  if (file_object == NULL)
+    return -1;
   return process_open_file(file_object);
 }
 
