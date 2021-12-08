@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "userprog/exception.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
@@ -17,6 +18,7 @@ static void syscall_handler (struct intr_frame *);
 static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 static bool check_mmap_validity(int fd, void *addr);
+static bool check_buffer_validity (const void *, size_t, bool, struct intr_frame *);
 
 /* Syscall handlers for each system call numbers */
 static void halt (void);
@@ -46,12 +48,12 @@ syscall_get_argument (struct intr_frame *f, const int argc, int *argv) {
 /* Check address given from user is valid or not */
 static bool
 check_address_validity (const void *vaddr) {
-  #ifdef VM
-  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4))
+#ifdef VM
+  if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)) {
     return true;
+  }
   return false;
-  #endif
-
+#else
   struct thread *t = thread_current();
 
   if (vaddr != NULL && is_user_vaddr(vaddr) && is_user_vaddr(vaddr + 4)  // check both start and end
@@ -59,6 +61,48 @@ check_address_validity (const void *vaddr) {
     return true;
 
   return false;
+#endif
+}
+
+static bool
+check_buffer_validity (const void *buffer, size_t size, bool is_writable, struct intr_frame *f)
+{
+  ASSERT (buffer != NULL);
+
+  void *vaddr = (void *) buffer;
+
+  while ((int) size > 0)
+  {
+    if (!check_address_validity(vaddr)) {
+      return false;
+    }
+
+    struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
+    if (pe == NULL)
+    {
+      if (!check_stack_validity(vaddr, f)) return false;
+      pe = spt_find_page (&thread_current ()->spt, vaddr);
+    }
+ 
+    if (is_writable && !pe->writable) {
+      return false;
+    }
+
+    if (pe->frame != NULL) {
+      pe->frame->pinned = true;
+    } else {
+      if (!demand_page(pe)) {
+        return false;
+      }
+      ASSERT (pe->frame != NULL);
+      pe->frame->pinned = true;
+    }
+
+    vaddr += PGSIZE;
+    size -= PGSIZE;
+  }
+
+  return true;
 }
 
 void
@@ -141,16 +185,28 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_READ:
       syscall_get_argument(f, 3, args);
+#ifdef VM
+      valid = check_buffer_validity ((void *) args[1], args[2], true, f);
+#else
       valid = check_address_validity((void *) args[1]);
-      if (!valid) exit(-1);
+#endif
+      if (!valid) {
+        exit(-1);
+      }
 
       f->eax = read(args[0], (void *) args[1], args[2]);
       break;
 
     case SYS_WRITE:
       syscall_get_argument(f, 3, args);
+#ifdef VM
+      valid = check_buffer_validity ((void *) args[1], args[2], false, f);
+#else
       valid = check_address_validity((void *) args[1]);
-      if (!valid) exit(-1);
+#endif
+      if (!valid) {
+        exit(-1);
+      }
 
       f->eax = write(args[0], (void *) args[1], args[2]);
       break;

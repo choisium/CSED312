@@ -18,7 +18,6 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-static bool check_stack_validity (const void *, struct intr_frame *);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -181,15 +180,13 @@ page_fault (struct intr_frame *f)
     {
       exit(-1);
     }
-   
-
 #else
   exit(-1);
 #endif
 }
 
 /* Check faulted address is in stack region or not */
-static bool
+bool
 check_stack_validity (const void *vaddr, struct intr_frame *f)
 {
   struct page_entry *pe;

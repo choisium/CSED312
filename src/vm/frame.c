@@ -22,9 +22,7 @@ init_frame_table (void)
 void
 add_frame (struct frame* frame)
 {   
-    lock_acquire(&frame_table->lock);
     list_push_back(&frame_table->list, &frame->elem);
-    lock_release(&frame_table->lock);
 }
 
 struct frame*
@@ -34,20 +32,33 @@ del_frame (struct frame* frame)
     
     struct frame *fr = NULL;
     struct list_elem *e;
+    bool acquire_lock = false;
 
-    lock_acquire(&frame_table->lock);
+    if (frame->page != NULL)
+      {
+        unmap_frame (frame->page);
+        unmap_page (frame);
+      }
+    
+    if (!lock_held_by_current_thread (&frame_table->lock)) {
+        acquire_lock = true;
+        lock_acquire(&frame_table->lock);
+    }
 
     /* Remove child from parent's child_list */
     for (e = list_begin (&frame_table->list); e != list_end (&frame_table->list);
         e = list_next (e))
       {
         fr = list_entry (e, struct frame, elem);
-        if (frame == fr)
+        if (frame == fr) {
             list_remove(e);
+            break;
+        }
       }
 
-    lock_release(&frame_table->lock);
-
+    if (acquire_lock) {
+        lock_release(&frame_table->lock);
+    }
     ASSERT (fr != NULL);
 
     if (fr == NULL)
@@ -82,6 +93,8 @@ find_frame (struct page_entry* pe)
 struct frame *
 allocate_frame (enum palloc_flags flags)
 {
+    lock_acquire(&frame_table->lock);
+
     uint8_t *kpage = palloc_get_page (flags);
     if (kpage == NULL)
       {
@@ -97,8 +110,12 @@ allocate_frame (enum palloc_flags flags)
     fr->paddr = (void *) kpage;
     fr->owner = thread_current ();
     fr->page = NULL;
+    fr->pinned = false;
 
     add_frame(fr);
+
+    lock_release(&frame_table->lock);
+
     return fr;
 }
 
@@ -117,14 +134,35 @@ free_frame (struct frame *frame)
 }
 
 void
+destroy_frame_table ()
+{
+  while (!list_empty (&frame_table->list))
+    {
+      struct list_elem *e = list_pop_front (&frame_table->list);
+      struct frame *fr = list_entry (e, struct frame, elem);
+      free_frame (fr);
+    }
+}
+
+void
 map_page_to_frame (struct frame *fr, struct page_entry *pe)
 {
+    ASSERT (fr->page == NULL)
+
     fr->page = pe;
+}
+
+void
+unmap_page (struct frame *fr)
+{
+  fr->page = NULL;
 }
 
 struct frame *
 choose_victim (void)
 {
+    ASSERT (lock_held_by_current_thread (&frame_table->lock));
+
     struct frame *victim = NULL;
     struct list_elem *clock_hand_elem;
     struct list_elem *e;
@@ -134,13 +172,17 @@ choose_victim (void)
     else
       clock_hand_elem = &frame_table->clock_hand->elem;
 
-    lock_acquire(&frame_table->lock);
+    int count = 0;
+    while (count < 2) {
 
     /* Choose Victim */
     for (e = clock_hand_elem; e != list_end (&frame_table->list);
         e = list_next (e))
       {
         struct frame *fr = list_entry (e, struct frame, elem);
+        if(fr->pinned)
+          continue;
+
         if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
           {
             victim = fr;
@@ -153,27 +195,39 @@ choose_victim (void)
           }
       }
 
-    /* If not found until list_end, start from begin */
-    if (victim == NULL)
+    if (victim != NULL)
       {
-          for (e = list_begin (&frame_table->list); e != clock_hand_elem;
-                e = list_next (e))
-            {
-                struct frame *fr = list_entry (e, struct frame, elem);
-                if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
-                  {
-                    victim = fr;
-                    clock_hand_elem = list_next (e);
-                    break;
-                  }
-                else
-                  {
-                    pagedir_set_accessed(fr->owner->pagedir, fr->page->vaddr, false);
-                  }
-            }
+        frame_table->clock_hand = list_entry (clock_hand_elem, struct frame, elem);
+        return victim;
       }
 
-    lock_release(&frame_table->lock);
+    /* If not found until list_end, start from begin */
+    for (e = list_begin (&frame_table->list); e != clock_hand_elem;
+          e = list_next (e))
+      {
+        struct frame *fr = list_entry (e, struct frame, elem);
+        if(fr->pinned)
+          continue;
+        
+        if (!pagedir_is_accessed(fr->owner->pagedir, fr->page->vaddr))
+          {
+            victim = fr;
+            clock_hand_elem = list_next (e);
+            break;
+          }
+        else
+          {
+            pagedir_set_accessed(fr->owner->pagedir, fr->page->vaddr, false);
+          }
+      }
+    
+    if (victim != NULL)
+    {
+      frame_table->clock_hand = list_entry(clock_hand_elem, struct frame, elem);
+      return victim;
+    }
+    count++;
+    }
 
     frame_table->clock_hand = list_entry (clock_hand_elem, struct frame, elem);
     
@@ -183,38 +237,56 @@ choose_victim (void)
 bool
 evict_frame (void)
 {
-    struct frame *victim = choose_victim ();
+    ASSERT (lock_held_by_current_thread (&frame_table->lock));
     
-    /* If victim is dirty, Swap out. */
-    if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
-      {
-          /* If PG_MMAP, just write at file. */
-          if (victim->page->type == PG_MMAP)
-            {
-                if (victim->page->writable) 
-                  {
-                    file_write_at(victim->page->file, victim->page->vaddr, 
-                                victim->page->read_bytes, victim->page->ofs);
-                  }
-            }
-          
-          /* Swap out the others. */
-          else
-            {
-                victim->page->type = PG_SWAP;
+    struct frame *victim = choose_victim ();
+    ASSERT (victim != NULL);
 
-                swap_index_t swap_idx = swap_out (victim);
-                if (swap_idx == SWAP_ERROR)
-                    return false;
-                
-                victim->page->swap_index = swap_idx;
-            }
+    /* If page type is SWAP or STACK, ALWAYS store at swap block and change page type to SWAP. */
+    if (victim->page->type == PG_SWAP || victim->page->type == PG_STACK)
+      {
+        victim->page->type = PG_SWAP;
+        swap_index_t swap_idx = swap_out (victim);
+        if (swap_idx == SWAP_ERROR)
+            return false;
+        
+        victim->page->swap_index = swap_idx;
+      }
+    else
+      {
+        /* If victim is dirty, Swap out. */
+        if (pagedir_is_dirty (victim->owner->pagedir, victim->page->vaddr))
+          {
+            /* If PG_MMAP, just write at file. */
+            if (victim->page->type == PG_MMAP)
+              {
+                  if (victim->page->writable) 
+                    {
+                      file_write_at(victim->page->file, victim->page->vaddr, 
+                                  victim->page->read_bytes, victim->page->ofs);
+                      
+                      pagedir_set_dirty (victim->owner->pagedir, victim->page->vaddr, false);
+                    }
+              }
+            /* If PG_FILE, Swap out and change type into PG_SWAP. */
+            else
+              {
+                  victim->page->type = PG_SWAP;
+
+                  swap_index_t swap_idx = swap_out (victim);
+                  if (swap_idx == SWAP_ERROR)
+                      return false;
+                  
+                  victim->page->swap_index = swap_idx;
+              }
+          }
       }
     
-    if (!free_frame (victim))
-      return false;
-
     pagedir_clear_page (victim->owner->pagedir, victim->page->vaddr);
+    victim->page->frame = NULL;
+
+    if (!free_frame(victim))
+      return false;
 
     return true;
 }
