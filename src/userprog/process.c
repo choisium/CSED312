@@ -766,7 +766,11 @@ demand_page (struct page_entry *pe)
       case PG_MMAP:
         /* load the page. */
         if (!load_file(fr->paddr, pe))
-          return false;
+          {
+            unmap_frame (pe);
+            unmap_page (fr);
+            return false;
+          }
         break;
       case PG_SWAP:
         swap_in (pe->swap_index, fr);
@@ -780,12 +784,10 @@ demand_page (struct page_entry *pe)
   if (!install_page(pe->vaddr, fr->paddr, pe->writable))
     {
       free_frame (fr);
-      pe->frame = NULL;
-      fr->page = NULL;
+      unmap_frame (pe);
+      unmap_page (fr);
       return false; 
     }
-  
-
-
+    
   return true;
 }
