@@ -69,7 +69,7 @@ check_buffer_validity (const void *buffer, size_t size, bool is_writable, struct
 {
   ASSERT (buffer != NULL);
 
-  void *vaddr = buffer;
+  void *vaddr = (void *) buffer;
 
   while ((int) size > 0)
   {
