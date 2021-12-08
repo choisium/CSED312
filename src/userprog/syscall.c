@@ -18,6 +18,7 @@ static void syscall_handler (struct intr_frame *);
 static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 static bool check_mmap_validity(int fd, void *addr);
+static bool check_buffer_validity (const void *, size_t, bool, struct intr_frame *);
 
 /* Syscall handlers for each system call numbers */
 static void halt (void);
@@ -64,11 +65,11 @@ check_address_validity (const void *vaddr) {
 }
 
 static bool
-check_buffer_validity (const void *buffer, size_t size, bool is_write, struct intr_frame *f)
+check_buffer_validity (const void *buffer, size_t size, bool is_writable, struct intr_frame *f)
 {
   ASSERT (buffer != NULL);
 
-  void *vaddr = buffer;
+  void *vaddr = (void *) buffer;
 
   while ((int) size > 0)
   {
@@ -83,7 +84,7 @@ check_buffer_validity (const void *buffer, size_t size, bool is_write, struct in
       pe = spt_find_page (&thread_current ()->spt, vaddr);
     }
  
-    if (is_write && !pe->writable) {
+    if (is_writable && !pe->writable) {
       return false;
     }
 
@@ -185,7 +186,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_READ:
       syscall_get_argument(f, 3, args);
 #ifdef VM
-      valid = check_buffer_validity ((void *) args[1], args[2], false, f);
+      valid = check_buffer_validity ((void *) args[1], args[2], true, f);
 #else
       valid = check_address_validity((void *) args[1]);
 #endif
@@ -198,8 +199,14 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_WRITE:
       syscall_get_argument(f, 3, args);
+#ifdef VM
+      valid = check_buffer_validity ((void *) args[1], args[2], false, f);
+#else
       valid = check_address_validity((void *) args[1]);
-      if (!valid) exit(-1);
+#endif
+      if (!valid) {
+        exit(-1);
+      }
 
       f->eax = write(args[0], (void *) args[1], args[2]);
       break;
