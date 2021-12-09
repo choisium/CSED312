@@ -1,16 +1,19 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
+#include <stddef.h>
 #include <hash.h>
 #include "filesys/file.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Types of page entry. */
 enum page_type
   {
     PG_FILE,            /* Load from Binary. */
     PG_MMAP,            /* Load from Memory Mapped File. */
-    PG_SWAP             /* Load from Swap slot. */
+    PG_SWAP,            /* Load from Swap slot. */
+    PG_STACK            /* For stack. */  
   };
 
 struct page_entry
@@ -30,6 +33,8 @@ struct page_entry
     struct hash_elem elem;     // hash elem for spt hash table
 
     struct list_elem mmap_elem; // list element for mmap_file.page_list
+
+    swap_index_t swap_index;      // Swap partition index that page is stored.
   };
 
 /* SPT Table Initialization */
@@ -51,4 +56,5 @@ bool set_page_entry (struct file *, off_t, uint8_t *, struct frame*,
                     uint32_t, uint32_t, bool, enum page_type); 
 bool load_file (void *, struct page_entry *);
 void map_frame_to_page (struct page_entry *, struct frame *);
+void unmap_frame (struct page_entry *);
 #endif

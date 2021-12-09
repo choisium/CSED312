@@ -53,6 +53,13 @@ process_execute (const char *file_name)
 
   /* Parse commands */
   argc = parse_command(file_name, argv);
+  lock_acquire(&file_system_lock);
+  struct file* file = filesys_open(argv[0]);
+  lock_release(&file_system_lock);
+  if (file == NULL) {
+    return -1;
+  }
+  file_close(file);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (argv[0], PRI_DEFAULT, start_process, fn_copy);
@@ -87,7 +94,6 @@ start_process (void *file_name_)
 #ifdef VM
   /* Initialize supplemental page table spt */
   spt_init(&t->spt);
-  lock_init(&t->spt_lock);
 #endif
 
   /* Initialize interrupt frame and load executable. */
@@ -205,6 +211,8 @@ process_exit (void)
   #ifdef VM
     /* destroy mmap_file_list */
     mmap_file_list_destroy();
+    /* destroy spt table */
+    spt_destroy(&cur->spt);
   #endif
 
   /* Destroy the current process's page directory and switch back
@@ -224,10 +232,6 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   
-#ifdef VM
-  /* destroy spt table */
-  spt_destroy(&cur->spt);
-#endif
 }
 
 /* Sets up the CPU for running user code in the current
@@ -514,8 +518,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 #ifdef VM
-      if (!set_page_entry(file, ofs, upage, NULL, read_bytes, 
-                          zero_bytes, writable, PG_FILE))
+      if (!set_page_entry(file, ofs, pg_round_down(upage), NULL, page_read_bytes, 
+                          page_zero_bytes, writable, PG_FILE))
         return false;
       
       ofs += page_read_bytes;
@@ -566,8 +570,11 @@ setup_stack (void **esp)
         free_frame (fr);
     }
 #ifdef VM
-  set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
-                0, 0, true, PG_SWAP);
+  if (!set_page_entry(NULL, 0, ((uint8_t *) PHYS_BASE) - PGSIZE, fr, 
+                0, 0, true, PG_STACK))
+    {
+      return false;
+    }
 #endif
   return success;
 }
@@ -755,13 +762,25 @@ demand_page (struct page_entry *pe)
   if (fr == NULL)
     return false;
 
+  map_frame_to_page (pe, fr);
+  map_page_to_frame (fr, pe);
+
   switch (pe->type)
     {
       case PG_FILE:
       case PG_MMAP:
         /* load the page. */
         if (!load_file(fr->paddr, pe))
-          return false;
+          {
+            unmap_frame (pe);
+            unmap_page (fr);
+            free_frame(fr);
+            return false;
+          }
+        break;
+      case PG_SWAP:
+        swap_in (pe->swap_index, fr);
+        pe->swap_index = SWAP_ERROR;
         break;
       default:
         break;
@@ -769,12 +788,11 @@ demand_page (struct page_entry *pe)
   
   if (!install_page(pe->vaddr, fr->paddr, pe->writable))
     {
+      unmap_frame (pe);
+      unmap_page (fr);
       free_frame (fr);
       return false; 
     }
-  
-  map_frame_to_page (pe, fr);
-  map_page_to_frame (fr, pe);
 
   return true;
 }

@@ -40,6 +40,7 @@
 #ifdef VM
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #endif
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -123,15 +124,16 @@ main (void)
   serial_init_queue ();
   timer_calibrate ();
 
-#ifdef VM
-  init_frame_table ();
-#endif
-
 #ifdef FILESYS
   /* Initialize file system. */
   ide_init ();
   locate_block_devices ();
   filesys_init (format_filesys);
+#endif
+
+#ifdef VM
+  init_frame_table ();
+  swap_init ();
 #endif
 
   printf ("Boot complete.\n");

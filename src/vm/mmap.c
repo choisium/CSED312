@@ -48,7 +48,7 @@ set_mmap_file (struct mmap_file *mmap_file, struct file *file, void *addr)
         read_bytes = size < PGSIZE ? size : PGSIZE;
         zero_bytes = PGSIZE - read_bytes;
 
-        if(!set_page_entry(mmap_file->file, ofs, upage, NULL,
+        if(!set_page_entry(mmap_file->file, ofs, pg_round_down(upage), NULL,
                         read_bytes, zero_bytes, true, PG_MMAP))
             return false;
 
@@ -88,17 +88,22 @@ del_mmap_file (struct mmap_file *mf)
     struct page_entry *pe;
 
     /* Remove page_entry from spt of thread and page_list of mmap_file */
-    for (e = list_begin (&mf->page_list); e != list_end (&mf->page_list); )
+    while (!list_empty (&mf->page_list))
       {
+        e = list_pop_front (&mf->page_list);
+        
         pe = list_entry (e, struct page_entry, mmap_elem);
-        spt_delete_page(&t->spt, pe);
-        list_remove(e);
+        spt_delete_page (&t->spt, pe);
 
-        if (pe->writable && pagedir_is_dirty(thread_current()->pagedir, pe->vaddr)) {
+        if (pe->writable && pagedir_is_dirty(thread_current()->pagedir, pe->vaddr)) 
+          {
             file_write_at(pe->file, pe->vaddr, pe->read_bytes, pe->ofs);
-        }
-
-        e = list_next(e);
+          }
+	if (pe->frame != NULL)
+          {
+            del_frame(pe->frame);
+            free(pe->frame);
+          }
         free(pe);
       }
 
@@ -115,11 +120,10 @@ mmap_file_list_destroy (void)
     struct mmap_file *mf;
 
     /* Remove page_entry from spt of thread and page_list of mmap_file */
-    for (e = list_begin (&t->mmap_file_list); e != list_end (&t->mmap_file_list); )
-    {
+    while (!list_empty (&t->mmap_file_list))
+      {
+        e = list_pop_front (&t->mmap_file_list);
         mf = list_entry (e, struct mmap_file, elem);
-        list_remove(e);
-        e = list_next(e);
-        del_mmap_file(mf);
-    }
+        del_mmap_file (mf);
+      }
 }

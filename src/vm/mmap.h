@@ -4,10 +4,6 @@
 #include <list.h>
 #include "filesys/file.h"
 
-/* Map region identifier. */
-typedef int mapid_t;
-#define MAP_FAILED ((mapid_t) -1)
-
 /* Entry for mmap_file_list in thread */
 struct mmap_file
   {
