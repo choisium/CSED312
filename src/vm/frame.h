@@ -26,7 +26,6 @@ struct frame_table
 void init_frame_table (void);
 void add_frame (struct frame *);
 struct frame * del_frame (struct frame *);
-struct frame * find_frame (struct page_entry *);
 
 struct frame * allocate_frame (enum palloc_flags flags);
 bool free_frame (struct frame *);

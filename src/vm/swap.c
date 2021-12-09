@@ -68,3 +68,10 @@ delete_slot (swap_index_t idx)
   ASSERT (bitmap_test (swap_slot, idx) == true);
   bitmap_flip (swap_slot, idx);
 }
+
+void
+swap_destroy (void)
+{
+  bitmap_destroy (swap_slot);
+  free (swap_block);
+}

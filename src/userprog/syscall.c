@@ -19,6 +19,7 @@ static void syscall_get_argument (struct intr_frame *, const int, int *);
 static bool check_address_validity(const void *);
 static bool check_mmap_validity(int fd, void *addr);
 static bool check_buffer_validity (const void *, size_t, bool, struct intr_frame *);
+static bool unpin_buffer (const void *, size_t);
 
 /* Syscall handlers for each system call numbers */
 static void halt (void);
@@ -97,6 +98,33 @@ check_buffer_validity (const void *buffer, size_t size, bool is_writable, struct
       ASSERT (pe->frame != NULL);
       pe->frame->pinned = true;
     }
+
+    vaddr += PGSIZE;
+    size -= PGSIZE;
+  }
+
+  return true;
+}
+
+static bool
+unpin_buffer (const void *buffer, size_t size)
+{
+  ASSERT (buffer != NULL);
+
+  void *vaddr = (void *) buffer;
+
+  while ((int) size > 0)
+  {
+    if (!check_address_validity(vaddr)) {
+      return false;
+    }
+
+    struct page_entry *pe = spt_find_page (&thread_current ()->spt, vaddr);
+    
+    ASSERT (pe != NULL);
+    ASSERT (pe->frame != NULL);
+
+    pe->frame->pinned = false;
 
     vaddr += PGSIZE;
     size -= PGSIZE;
@@ -195,6 +223,12 @@ syscall_handler (struct intr_frame *f)
       }
 
       f->eax = read(args[0], (void *) args[1], args[2]);
+#ifdef VM
+      valid = unpin_buffer ((void *) args[1], args[2]);
+      if (!valid) {
+        exit(-1);
+      }
+#endif
       break;
 
     case SYS_WRITE:
@@ -209,6 +243,12 @@ syscall_handler (struct intr_frame *f)
       }
 
       f->eax = write(args[0], (void *) args[1], args[2]);
+#ifdef VM
+      valid = unpin_buffer ((void *) args[1], args[2]);
+      if (!valid) {
+        exit(-1);
+      }
+#endif
       break;
 
     case SYS_SEEK:
@@ -341,7 +381,11 @@ write (int fd, const void *buffer, unsigned size)
 static bool
 create (const char *file, unsigned initial_size)
 {
-  return filesys_create(file, initial_size);
+  bool res;
+  lock_acquire(&file_system_lock);
+  res = filesys_create(file, initial_size);
+  lock_release(&file_system_lock);
+  return res;
 }
 
 static bool
@@ -353,8 +397,11 @@ remove (const char *file)
 static int
 open (const char *file)
 {
+  lock_acquire(&file_system_lock);
   struct file *file_object = filesys_open(file);
-  if (file_object == NULL) return -1;
+  lock_release(&file_system_lock);
+  if (file_object == NULL)
+    return -1;
   return process_open_file(file_object);
 }
 

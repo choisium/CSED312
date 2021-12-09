@@ -14,7 +14,10 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
-
+#ifdef VM
+#include "vm/frame.h"
+#include "vm/swap.h"
+#endif
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -312,6 +315,7 @@ thread_exit (void)
   if (t == initial_thread)
     {
       destroy_frame_table ();
+      swap_destroy ();
     }
 #endif
   schedule ();

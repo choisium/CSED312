@@ -68,6 +68,11 @@ void
 page_destructor (struct hash_elem *e, void *aux UNUSED)
   {
     struct page_entry *p = hash_entry (e, struct page_entry, elem);
+    if (p->frame != NULL)
+      {
+        del_frame(p->frame);
+        free(p->frame);
+      }
     if (p->type == PG_SWAP && p->swap_index != SWAP_ERROR)
       {
         delete_slot (p->swap_index);

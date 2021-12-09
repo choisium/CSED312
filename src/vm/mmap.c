@@ -99,7 +99,11 @@ del_mmap_file (struct mmap_file *mf)
           {
             file_write_at(pe->file, pe->vaddr, pe->read_bytes, pe->ofs);
           }
-
+	if (pe->frame != NULL)
+          {
+            del_frame(pe->frame);
+            free(pe->frame);
+          }
         free(pe);
       }
 
