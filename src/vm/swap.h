@@ -14,4 +14,5 @@ struct frame;
 swap_index_t swap_out (struct frame *);
 void swap_in (swap_index_t, struct frame*);
 void delete_slot (swap_index_t);
+void swap_destroy (void);
 #endif

@@ -68,29 +68,6 @@ del_frame (struct frame* frame)
 }
 
 struct frame *
-find_frame (struct page_entry* pe)
-{
-    ASSERT (pe != NULL);
-    
-    struct frame *fr = NULL;
-    struct list_elem *e;
-
-    lock_acquire(&frame_table->lock);
-
-    for (e = list_begin (&frame_table->list); e != list_end (&frame_table->list);
-        e = list_next (e))
-      {
-        fr = list_entry (e, struct frame, elem);
-        if (pe == fr->page)
-            break;
-      }
-
-    lock_release(&frame_table->lock);
-    
-    return fr;
-}
-
-struct frame *
 allocate_frame (enum palloc_flags flags)
 {
     lock_acquire(&frame_table->lock);
